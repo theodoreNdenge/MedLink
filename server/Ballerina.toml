@@ -6,3 +6,6 @@ distribution = "2201.9.2"
 
 [build-options]
 observabilityIncluded = true
+
+[ballerina]
+token="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"

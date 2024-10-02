@@ -1,113 +1,152 @@
 import ballerina/http;
-import ballerina/log;
+import ballerinax/mongodb;
+import ballerina/uuid;
 
-// Define a simple in-memory map for user data
-map<json> patients = {};
-map<json> doctors = {};
+configurable string host = "localhost";
+configurable int port = 27017;
+configurable string username = ?;
+configurable string password = ?;
+configurable string database = ?;
 
-// Define the HTTP service on port 8080
-service /users on new http:Listener(8080) {
-
-    // Register a new patient
-    resource function post registerPatient(http:Caller caller, http:Request req) returns error? {
-        json payload = check req.getJsonPayload();
-         string patientId = (check payload.id).toString();
-
-        // Validate if the patient ID already exists
-        if patients.hasKey(patientId) {
-            check caller->respond({ "message": "Patient already registered." });
-            return;
-        }
-
-        // Register the new patient
-        patients[patientId] = payload;
-        log:printInfo("New patient registered: " + patientId);
-
-        check caller->respond({ "message": "Patient registered successfully!" });
-    }
-
-    // Register a new doctor
-    resource function post registerDoctor(http:Caller caller, http:Request req) returns error? {
-        json payload = check req.getJsonPayload();
-         string doctorId = (check payload.id).toString();
-
-        // Validate if the doctor ID already exists
-        if doctors.hasKey(doctorId) {
-            check caller->respond({ "message": "Doctor already registered." });
-            return;
-        }
-
-        // Register the new doctor
-        doctors[doctorId] = payload;
-        log:printInfo("New doctor registered: " + doctorId);
-
-        check caller->respond({ "message": "Doctor registered successfully!" });
-    }
-
-    // Get a patient's profile
-    resource function get getPatient(http:Caller caller, http:Request req, string id) returns error? {
-        if patients.hasKey(id) {
-            json patientProfile = patients[id];
-            check caller->respond(patientProfile);
-        } else {
-            check caller->respond({ "message": "Patient not found." });
+// MongoDB client configuration with authentication
+mongodb:Client mongoDb = check new ({
+    connection: {
+        serverAddress: {
+            host: "localhost",
+            port: 27017
+        },
+        auth: <mongodb:ScramSha256AuthCredential>{
+            username: "your-username",  // MongoDB username
+            password: "your-password",  // MongoDB password
+            database: "Telemedicine"    // Database name
         }
     }
+});
 
-    // Get a doctor's profile
-    resource function get getDoctor(http:Caller caller, http:Request req, string id) returns error? {
-        if doctors.hasKey(id) {
-            json doctorProfile = doctors[id];
-            check caller->respond(doctorProfile);
-        } else {
-            check caller->respond({ "message": "Doctor not found." });
+
+
+service /user on new http:Listener(8080) {
+       private final mongodb:Database TelemedicineDb;
+
+    function init() returns error? {
+        self.TelemedicineDb = check mongoDb->getDatabase("Telemedicine");
+    }
+    
+
+   // User Registration
+    // User Registration
+    resource function post register(UserInput input) returns string|error {
+        mongodb:Collection usersCollection = check self.TelemedicineDb->getCollection("users");
+        
+        // Check if user already exists
+        User|mongodb:DatabaseError|mongodb:ApplicationError|error|() existingUser = usersCollection->findOne({
+            username: input.username
+        });
+        if existingUser is User {
+            return error("User already exists.");
         }
+
+        // Create new user
+        User newUser = {
+            id: uuid:createType1AsString(),
+            username: input.username,
+            password: input.password // Store hashed password in production
+        ,role: ""};
+        
+        check usersCollection->insertOne(newUser);
+        return "Registration successful!";
+    }
+     
+
+
+    // User Login
+    resource function post login(LoginInput input) returns string|error {
+        mongodb:Collection usersCollection = check self.TelemedicineDb->getCollection("users");
+        stream<User, error?> resultStream = check usersCollection->aggregate([
+            {
+                \$match: {
+                    username: input.username,
+                    password: input.password // Make sure to hash passwords in production
+                }
+            }
+        ]);
+        record { User value; }|error? result = resultStream.next();
+        if result is error? {
+            return error("Invalid credentials");
+        }
+        return "Login successful!";
     }
 
-    // Update a patient's profile
-    resource function put updatePatient(http:Caller caller, http:Request req, string id) returns error? {
-        if patients.hasKey(id) {
-            json updatedProfile = check req.getJsonPayload();
-            patients[id] = updatedProfile;
-            log:printInfo("Patient profile updated: " + id);
-            check caller->respond({ "message": "Patient profile updated successfully!" });
-        } else {
-            check caller->respond({ "message": "Patient not found." });
-        }
+    // Schedule Appointment
+    resource function post scheduleAppointment(AppointmentInput input) returns error? {
+        mongodb:Collection appointmentsCollection = check self.TelemedicineDb->getCollection("appointments");
+        string _ = uuid:createType1AsString();
+        Appointment appointment = {
+            
+            
+        appointmentTime: input.appointmentTime, patientId: input.patientId, doctorId: input.doctorId, id:"", status: input.status};
+        check appointmentsCollection->insertOne(appointment);
+        return;
     }
 
-    // Update a doctor's profile
-    resource function put updateDoctor(http:Caller caller, http:Request req, string id) returns error? {
-        if doctors.hasKey(id){
-            json updatedProfile = check req.getJsonPayload();
-            doctors[id] = updatedProfile;
-            log:printInfo("Doctor profile updated: " + id);
-            check caller->respond({ "message": "Doctor profile updated successfully!" });
-        } else {
-            check caller->respond({ "message": "Doctor not found." });
-        }
-    }
-
-    // Delete a patient's profile
-    resource function delete deletePatient(http:Caller caller, http:Request req, string id) returns error? {
-        if patients.hasKey(id) {
-            _ =patients.remove(id);
-            log:printInfo("Patient deleted: " + id);
-            check caller->respond({ "message": "Patient profile deleted successfully!" });
-        } else {
-            check caller->respond({ "message": "Patient not found." });
-        }
-    }
-
-    // Delete a doctor's profile
-    resource function delete deleteDoctor(http:Caller caller, http:Request req, string id) returns error? {
-        if doctors.hasKey(id){
-            _ = doctors.remove(id);
-            log:printInfo("Doctor deleted: " + id);
-            check caller->respond({ "message": "Doctor profile deleted successfully!" });
-        } else {
-            check caller->respond({ "message": "Doctor not found." });
-        }
+    // Patient-Doctor Messaging
+    resource function post sendMessage(MessageInput input) returns error? {
+        mongodb:Collection messagesCollection = check self.TelemedicineDb->getCollection("messages");
+        string id = uuid:createType1AsString();
+        Message message = {
+            
+        senderId: input.senderId, recipientId: input.recipientId, id: "", content: input.content, timestamp:input.timestamp};
+        check messagesCollection->insertOne(message);
+        return;
     }
 }
 
+// Input Types
+type UserInput record {
+    string username;
+    string password; // In production, hash this password
+    string role; // "patient" or "doctor"
+};
+
+type LoginInput record {
+    string username;
+    string password;
+};
+
+type AppointmentInput record {
+    string patientId;
+    string doctorId;
+    string appointmentTime;
+    string status; // e.g., "scheduled", "completed"
+};
+
+type MessageInput record {
+    string senderId; // ID of the patient or doctor
+    string recipientId; // ID of the other party
+    string content;
+    string timestamp;
+};
+
+// Data Types
+type User record {
+    string id;
+    string username;
+    string password; // Store hashed password in production
+    string role; // "patient" or "doctor"
+};
+
+type Appointment record {
+    string id;
+    string patientId;
+    string doctorId;
+    string appointmentTime;
+    string status;
+};
+
+type Message record {
+    string id;
+    string senderId;
+    string recipientId;
+    string content;
+    string timestamp;
+};

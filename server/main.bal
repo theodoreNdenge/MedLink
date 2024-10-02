@@ -8,6 +8,7 @@ configurable string username = ?;
 configurable string password = ?;
 configurable string database = ?;
 
+
 // MongoDB client configuration with authentication
 mongodb:Client mongoDb = check new ({
     connection: {
@@ -16,9 +17,9 @@ mongodb:Client mongoDb = check new ({
             port: 27017
         },
         auth: <mongodb:ScramSha256AuthCredential>{
-            username: "your-username",  // MongoDB username
-            password: "your-password",  // MongoDB password
-            database: "Telemedicine"    // Database name
+            username,  
+            password,  
+            database   // Database name
         }
     }
 });
@@ -26,6 +27,8 @@ mongodb:Client mongoDb = check new ({
 
 
 service /user on new http:Listener(8080) {
+    
+    
        private final mongodb:Database TelemedicineDb;
 
     function init() returns error? {

@@ -36,7 +36,7 @@ const Signup = () => {
                 <button type="submit">Sign Up as Doctor</button>
                 <button type="submit">Sign Up as Patient</button>
                 <button type="button" onClick={() => navigate('/login')}>
-                    Don't have an account? Login
+                    Already have an account? Login
                 </button>
                 <button type="submit" onClick={() => navigate('./home')}>Home</button>
             </form>

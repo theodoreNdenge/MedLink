@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import './sign-up.css';
+import './login.css';
 
-const Signup = () => {
+const Login = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const navigate = useNavigate();
 
-    const handleSignup = (e) => {
+    const handleLogin = (e) => {
         e.preventDefault();
         // Handle signup logic here
         console.log('Username:', username);
@@ -15,10 +15,10 @@ const Signup = () => {
     };
 
     return (
-        <div className="signup-container">
+        <div className="login-container">
             <img src="/images/img2.jpg" alt="Background" className="background-image" />
-            <form className="signup-form" onSubmit={handleSignup}>
-                <h2>Sign Up</h2>
+            <form className="login-form" onSubmit={handleLogin}>
+                <h2>Login</h2>
                 <input
                     type="text"
                     placeholder="Username"
@@ -33,10 +33,10 @@ const Signup = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                 />
-                <button type="submit">Sign Up as Doctor</button>
-                <button type="submit">Sign Up as Patient</button>
-                <button type="button" onClick={() => navigate('/login')}>
-                    Don't have an account? Login
+                <button type="submit">Login as Doctor</button>
+                <button type="submit">Login as Patient</button>
+                <button type="button" onClick={() => navigate('/sign-up')}>
+                    Don't have an account? Sign up
                 </button>
                 <button type="submit" onClick={() => navigate('./home')}>Home</button>
             </form>
@@ -44,4 +44,4 @@ const Signup = () => {
     );
 };
 
-export default Signup;
+export default Login;

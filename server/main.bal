@@ -15,11 +15,6 @@ mongodb:Client mongoDb = check new ({
         serverAddress: {
             host: "localhost",
             port: 27017
-        },
-        auth: <mongodb:ScramSha256AuthCredential>{
-            username,  
-            password,  
-            database   // Database name
         }
     }
 });
@@ -54,7 +49,7 @@ service /user on new http:Listener(8080) {
             id: uuid:createType1AsString(),
             username: input.username,
             password: input.password // Store hashed password in production
-        ,role: ""};
+        ,role:input.role};
         
         check usersCollection->insertOne(newUser);
         return "Registration successful!";
@@ -95,7 +90,7 @@ service /user on new http:Listener(8080) {
     // Patient-Doctor Messaging
     resource function post sendMessage(MessageInput input) returns error? {
         mongodb:Collection messagesCollection = check self.TelemedicineDb->getCollection("messages");
-        string id = uuid:createType1AsString();
+        string _ = uuid:createType1AsString();
         Message message = {
             
         senderId: input.senderId, recipientId: input.recipientId, id: "", content: input.content, timestamp:input.timestamp};

@@ -5,6 +5,7 @@ import './sign-up.css';
 const Signup = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [role, setRole] = useState('');
     const navigate = useNavigate();
 
     const handleSignup = (e) => {
@@ -12,6 +13,7 @@ const Signup = () => {
         // Handle signup logic here
         console.log('Username:', username);
         console.log('Password:', password);
+        console.log('Role:', role);
     };
 
     return (
@@ -33,8 +35,12 @@ const Signup = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                 />
-                <button type="submit">Sign Up as Doctor</button>
-                <button type="submit">Sign Up as Patient</button>
+                <select value={role} onChange={(e) => setRole(e.target.value)} required>
+                    <option value="">Select Role: </option>
+                    <option value="patient">Patient</option>
+                    <option value="doctor">Doctor</option>
+                </select>
+                <button type="submit">Sign Up</button>
                 <button type="button" onClick={() => navigate('/login')}>
                     Already have an account? Login
                 </button>

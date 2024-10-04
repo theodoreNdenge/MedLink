@@ -1,13 +1,12 @@
 import ballerina/http;
-import ballerinax/mongodb;
 import ballerina/uuid;
+import ballerinax/mongodb;
 
 configurable string host = "localhost";
 configurable int port = 27017;
-configurable string username = ?;
-configurable string password = ?;
-configurable string database = ?;
-
+configurable string username = "username";
+configurable string password = "password";
+configurable string database = "Telemedicine";
 
 // MongoDB client configuration with authentication
 mongodb:Client mongoDb = check new ({
@@ -19,23 +18,19 @@ mongodb:Client mongoDb = check new ({
     }
 });
 
-
-
 service /user on new http:Listener(8080) {
-    
-    
-       private final mongodb:Database TelemedicineDb;
+
+    private final mongodb:Database TelemedicineDb;
 
     function init() returns error? {
         self.TelemedicineDb = check mongoDb->getDatabase("Telemedicine");
     }
-    
 
-   // User Registration
+    // User Registration
     // User Registration
     resource function post register(UserInput input) returns string|error {
         mongodb:Collection usersCollection = check self.TelemedicineDb->getCollection("users");
-        
+
         // Check if user already exists
         User|mongodb:DatabaseError|mongodb:ApplicationError|error|() existingUser = usersCollection->findOne({
             username: input.username
@@ -49,13 +44,44 @@ service /user on new http:Listener(8080) {
             id: uuid:createType1AsString(),
             username: input.username,
             password: input.password // Store hashed password in production
-        ,role:input.role};
-        
+            ,
+            role: input.role
+        };
+
         check usersCollection->insertOne(newUser);
         return "Registration successful!";
     }
-     
 
+    function createErrorResponse(string message) returns http:Response|error {
+        json errorResponse = {"status": "error", "message": message};
+        http:Response response = new;
+        response.setJsonPayload(errorResponse);
+        check response.setContentType("application/json");
+        response.statusCode = 500;
+        return response;
+    }
+
+    function createSuccessResponse(string message) returns http:Response|error {
+        json successResponse = {"status": "success", "message": message};
+        http:Response response = new;
+        response.setJsonPayload(successResponse);
+        check response.setContentType("application/json");
+        response.statusCode = 200;
+        return response;
+    }
+
+    // Fetch User Details
+    resource function get details(string username) returns User|error {
+        mongodb:Collection usersCollection = check self.TelemedicineDb->getCollection("users");
+        User|mongodb:DatabaseError|mongodb:ApplicationError|error|() user = usersCollection->findOne({
+            username: username
+        });
+        if user is User {
+            return user;
+        } else {
+            return error("User not found.");
+        }
+    }
 
     // User Login
     resource function post login(LoginInput input) returns string|error {
@@ -68,7 +94,7 @@ service /user on new http:Listener(8080) {
                 }
             }
         ]);
-        record { User value; }|error? result = resultStream.next();
+        record {User value;}|error? result = resultStream.next();
         if result is error? {
             return error("Invalid credentials");
         }
@@ -80,9 +106,13 @@ service /user on new http:Listener(8080) {
         mongodb:Collection appointmentsCollection = check self.TelemedicineDb->getCollection("appointments");
         string _ = uuid:createType1AsString();
         Appointment appointment = {
-            
-            
-        appointmentTime: input.appointmentTime, patientId: input.patientId, doctorId: input.doctorId, id:"", status: input.status};
+
+            appointmentTime: input.appointmentTime,
+            patientId: input.patientId,
+            doctorId: input.doctorId,
+            id: "",
+            status: input.status
+        };
         check appointmentsCollection->insertOne(appointment);
         return;
     }
@@ -92,8 +122,13 @@ service /user on new http:Listener(8080) {
         mongodb:Collection messagesCollection = check self.TelemedicineDb->getCollection("messages");
         string _ = uuid:createType1AsString();
         Message message = {
-            
-        senderId: input.senderId, recipientId: input.recipientId, id: "", content: input.content, timestamp:input.timestamp};
+
+            senderId: input.senderId,
+            recipientId: input.recipientId,
+            id: "",
+            content: input.content,
+            timestamp: input.timestamp
+        };
         check messagesCollection->insertOne(message);
         return;
     }

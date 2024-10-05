@@ -94,12 +94,16 @@ service /user on new http:Listener(8080) {
             }
         }]);
 
-        var result = resultStream.next();
-        if result is record {User value;} {
-            return createSuccessResponse("Login successful!"+ result.value.id);
-        } else {
-            return check createErrorResponse("Invalid credentials.");
-        }
+      var result = resultStream.next();
+if result is record {| User value; |} {
+    string userId = result.value.id.toString();  // Convert the user ID to string
+    string role = result.value.role.toString();  // Convert the role to string
+
+    // Include both the user ID and role in the response message
+    return createSuccessResponse("Login successful! User ID: " + userId + ", Role: " + role);
+} else {
+    return check createErrorResponse("Invalid credentials.");
+}
     }
 
 
@@ -166,9 +170,45 @@ resource function get doctorDashboard(string doctorId) returns json|error {
     json appointments = resultStream.toString();
     return appointments;
 }
+//Patient Profile Implementation
+//serach doctor
+resource function get searchDoctors(string specialization) returns json|error {
+    mongodb:Collection usersCollection = check self.TelemedicineDb->getCollection("users");
+    stream<User, error?> resultStream = check usersCollection->find({role: "doctor", specialization: specialization});
+    json doctors = resultStream.toString();
+    return doctors;
+}
+
+//upload health record
+resource function post uploadHealthRecord(string patientId, HealthRecordInput input) returns http:Response|error {
+    mongodb:Collection healthRecordsCollection = check self.TelemedicineDb->getCollection("health_records");
+
+    // Construct the health record object
+    HealthRecordInput newRecord = {
+        id: uuid:createType1AsString(),
+        patientId: patientId,
+        recordUrl: input.recordUrl, // Ensure you have a field in HealthRecordInput for the URL
+        timestamp: input.timestamp
+    };
+
+    // Insert the health record into the collection
+    check healthRecordsCollection->insertOne(newRecord);
+    
+    return createSuccessResponse("Health record uploaded successfully.");
+}
+
 
     
 }
+
+type PatientProfileInput record {
+    string id;
+    string username;
+    string role; // "patient"
+    string healthRecords; // e.g., file path or URL to uploaded health records
+    // Add other necessary fields like age, gender, etc.
+};
+
 
 // Input Types
 type UserInput record {
@@ -196,6 +236,14 @@ type MessageInput record {
     string content;
     string timestamp;
 };
+type DoctorProfile record {
+    string id;
+    string username;
+    string role; // "doctor"
+    string specialization;
+    // Add other necessary fields like qualifications, experience, etc.
+};
+
 
 // Data Types
 type User record {
@@ -212,6 +260,13 @@ type Appointment record {
     string doctorId;
     string appointmentTime;
     string status;
+    
+};
+type HealthRecordInput record {
+    string recordUrl; // URL to the uploaded health record file
+    string timestamp; // The time the record was uploaded
+    string id;
+     string patientId;
 };
 
 type Message record {

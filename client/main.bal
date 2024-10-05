@@ -1,50 +1,129 @@
 import ballerina/http;
 import ballerina/io;
-
+import ballerina/log;
 
 public function main() returns error? {
-    // Prompt the user for login details
-    io:println("Enter username:");
-    string username = io:readln();
-
-    io:println("Enter password:");
-    string password = io:readln();
-
-    // Attempt to log in
-    var loginResponse = loginUser(username, password);
-    if (loginResponse is error) {
-        io:println("Login failed: " + loginResponse.message());
-        return;
-    }
-
-    // Extract the 'message' field from the JSON response
-   json userResponse = <json>loginResponse;
-    string message = (check userResponse.message).toString();
-
-    // Extract the 'role' from the message string
-    string role = extractRoleFromMessage(message);
-    if (role == "") {
-        io:println("Could not determine the user's role.");
-        return;
-    }
-
-    // Check role and proceed to the relevant dashboard
-    if (role == "doctor") {
-        io:println("Welcome Doctor!");
-        doctorDashboard();
-    } else if (role == "patient") {
-        io:println("Welcome Patient!");
-        patientDashboard();
-    } else {
-        io:println("Unknown role. Please contact support.");
-    }
-}
-
-// Function to log in a user
-function loginUser(string username, string password) returns json|error {
     // Create an HTTP client
     http:Client clientEndpoint = check new ("http://localhost:8080");
 
+    while (true) {
+        // Prompt the user for action
+        io:println("1. Register");
+        io:println("2. Login");
+        io:println("3. Exit");
+        string option1 = io:readln();
+
+        match option1 {
+            "1" => {
+                io:println("Register");
+                io:println("Enter username:");
+                string username = io:readln();
+
+                io:println("Enter password:");
+                string password = io:readln();
+
+                io:println("Enter role (patient/doctor):");
+                string role = io:readln();
+
+                string specialization = "";
+
+                // If the user is a doctor, prompt for specialization
+                if (role == "doctor") {
+                    io:println("Enter specialization:");
+                    specialization = io:readln();
+                }
+
+                // Call the registerUser function
+                check registerUser(clientEndpoint, username, password, role, specialization);         
+                io:println("Registration successful! Please log in.");
+            }
+            "2" => {
+                io:println("Login"); 
+                io:println("Enter username:");
+                string username = io:readln();
+
+                io:println("Enter password:");
+                string password = io:readln();
+                
+                var loginResponse = loginUser(clientEndpoint, username, password);
+                if (loginResponse is error) {
+                    io:println("Login failed: " + loginResponse.message());
+                    return;
+                }
+
+                json userResponse = <json>loginResponse;
+                string message = (check userResponse.message).toString();
+
+                // Extract the 'role' from the message string
+                string role = extractRoleFromMessage(message);
+                if (role == "") {
+                    io:println("Could not determine the user's role.");
+                    return;
+                }
+
+                // Check role and proceed to the relevant dashboard
+                if (role == "doctor") {
+                    io:println("Welcome Doctor!");
+                    doctorDashboard();
+                } else if (role == "patient") {
+                    io:println("Welcome Patient!");
+                    patientDashboard();
+                } else {
+                    io:println("Unknown role. Please contact support.");
+                }
+            }
+            "3" => {
+                io:println("Exiting the application.");
+                return; // Exit the application
+            }
+            _ => {
+                io:println("Invalid option");
+            }
+        }
+    }
+}
+
+// Function to register a user
+function registerUser(http:Client clientEndpoint, string username, string password, string role, string specialization) returns error? {
+    // Define the user data
+    json userData = {
+        username: username,
+        password: password, // Remember to hash this password in production!
+        role: role,
+        specialization: role == "doctor" ? specialization : ""
+    };
+
+    // Make the POST request to the server-side registration endpoint
+    http:Response Register = check clientEndpoint->post("/user/register", userData);
+
+    // Log and handle the response from the server
+    if (Register is http:Response) {
+        // Check if response content type is JSON before attempting to get JSON payload
+        string contentType = check Register.getHeader("content-type");
+
+        if contentType.startsWith("application/json") {
+            json|error responseBody = Register.getJsonPayload();
+            if responseBody is json {
+                string message = (check responseBody.message).toString();
+                if (Register.statusCode == 200) {
+                    io:println("Registration Successful: ", message);
+                } else {
+                    io:println("Registration Failed: ", message);
+                }
+            } else {
+                log:printError("Error occurred while retrieving the JSON payload from the response.");
+                io:println("An error occurred during registration. Please try again.");
+            }
+        } else {
+            log:printError("Expected JSON response, but got content type: " + contentType);
+            io:println("Unexpected response from server. Please contact support.");
+        }
+    }
+    return;
+}
+
+// Function to log in a user
+function loginUser(http:Client clientEndpoint, string username, string password) returns json|error {
     // Define login data
     json loginData = {
         username: username,
@@ -52,14 +131,14 @@ function loginUser(string username, string password) returns json|error {
     };
 
     // Make the POST request to the login endpoint
-    http:Response response = check clientEndpoint->post("/user/login", loginData);
+    http:Response Login = check clientEndpoint->post("/user/login", loginData);
 
     // Extract the response payload
-    if (response is http:Response) {
-        string contentType = check response.getHeader("content-type");
+    if (Login is http:Response) {
+        string contentType = check Login.getHeader("content-type");
 
         if contentType.startsWith("application/json") {
-            json|error responseBody = response.getJsonPayload();
+            json|error responseBody = Login.getJsonPayload();
             if responseBody is json {
                 return responseBody; // Return the login response with user data
             }

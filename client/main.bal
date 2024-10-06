@@ -66,7 +66,7 @@ public function main() returns error? {
                     io:println("Welcome Doctor!");
                     doctorDashboard();
                 } else if (role == "patient") {
-                    io:println("Welcome Patient!");
+                    io:println("Welcome "+ username);
                     check patientDashboard(clientEndpoint);
                 } else {
                     io:println("Unknown role. Please contact support.");

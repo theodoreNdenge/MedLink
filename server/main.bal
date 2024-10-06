@@ -20,9 +20,10 @@ mongodb:Client mongoDb = check new ({
         }
     }
 });
+
 function setCORSHeaders(http:Response res) returns http:Response {
     res.addHeader("Access-Control-Allow-Origin", "*");
-    res.addHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.addHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, userId");
     res.addHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     return res;
 }
@@ -96,7 +97,7 @@ service /user on new http:Listener(8080) {
 
  
     // User Login
-   resource function post login(LoginInput input) returns http:Response|error {
+  resource function post login(LoginInput input) returns http:Response|error {
     mongodb:Collection usersCollection = check self.TelemedicineDb->getCollection("users");
 
     stream<User, error?> resultStream = check usersCollection->aggregate([{
@@ -111,14 +112,26 @@ service /user on new http:Listener(8080) {
     if result is record {| User value; |} {
         string userId = result.value.id.toString();
         string role = result.value.role.toString();
+        string username = result.value.username.toString();
 
-        http:Response res = check createSuccessResponse("Login successful! User ID: " + userId + ", Role: " + role);
+        // Include the userId in the success response
+        json responseBody = {
+            "status": "success",
+            "message": "Login successful!",
+            "userId": userId, // Return userId to the client
+            "role": role,
+            "username": username
+        };
+
+        http:Response res = new;
+        res.setJsonPayload(responseBody);
         return setCORSHeaders(res);
     } else {
         http:Response errorRes = check createErrorResponse("Invalid credentials.");
         return setCORSHeaders(errorRes);
     }
 }
+
 
 
 
@@ -145,7 +158,8 @@ service /user on new http:Listener(8080) {
     };
 
     check appointmentsCollection->insertOne(appointment);
-    return createSuccessResponse("Appointment scheduled successfully.");
+     http:Response res = check createSuccessResponse("Appointment scheduled successfully.");
+    return  setCORSHeaders(res);
 }
 
 
@@ -163,18 +177,26 @@ resource function post sendMessage(MessageInput input) returns http:Response|err
     };
 
     check messagesCollection->insertOne(message);
-    return check createSuccessResponse("Message sent successfully.");
+
+     http:Response res = check createSuccessResponse("Message Sent successfully.");
+    return  setCORSHeaders(res);
+    
 }
 
     // Patient Dashboard: View appointments
-resource function get patientDashboard(string patientId) returns json|error {
+resource function get patientDashboard(http:Request req) returns error|http:Response {
     mongodb:Collection appointmentsCollection = check self.TelemedicineDb->getCollection("appointments");
+
+    // Extract userId from the request headers or body
+    string patientId = check req.getHeader("userId");  // Assuming frontend sends userId in headers
 
     // Find all appointments for this patient
     stream<Appointment, error?> resultStream = check appointmentsCollection->find({patientId: patientId});
     json appointments = resultStream.toString();
-    return appointments;
+    http:Response res = check createSuccessResponse(<string>appointments);
+    return  setCORSHeaders(res);
 }
+
 
 // Doctor Dashboard: View appointments
 resource function get doctorDashboard(string doctorId) returns json|error {
@@ -213,22 +235,26 @@ resource function get searchDoctors(string specialization) returns json|error {
 
 
 //upload health record
-resource function post uploadHealthRecord(string patientId, HealthRecordInput input) returns http:Response|error {
+resource function post uploadHealthRecord(http:Request req, HealthRecordInput input) returns http:Response|error {
     mongodb:Collection healthRecordsCollection = check self.TelemedicineDb->getCollection("health_records");
+
+    // Get the userId from the request body or headers
+    string userId = check req.getHeader("userId");  // Assuming frontend sends userId in headers
 
     // Construct the health record object
     HealthRecordInput newRecord = {
         id: uuid:createType1AsString(),
-        patientId: patientId,
-        recordUrl: input.recordUrl, // Ensure you have a field in HealthRecordInput for the URL
+        patientId: userId,
+        recordUrl: input.recordUrl,
         timestamp: input.timestamp
     };
 
     // Insert the health record into the collection
     check healthRecordsCollection->insertOne(newRecord);
-    
+
     return createSuccessResponse("Health record uploaded successfully.");
 }
+
 resource function options login() returns http:Response {
     http:Response res = new;
     http:Response cORSHeaders = setCORSHeaders(res);
@@ -241,7 +267,33 @@ resource function options register() returns http:Response {
     res.addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
     return res;
 }
-
+resource function options patientDashboard() returns http:Response {
+    http:Response res = new;
+    http:Response cORSHeaders = setCORSHeaders(res);
+    res.addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.addHeader("Access-Control-Allow-Headers", "userId, Content-Type");
+   
+    return res;
+}
+resource function options sendMessage() returns http:Response {
+    http:Response res = new;
+    http:Response cORSHeaders = setCORSHeaders(res);
+    res.addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    return res;
+}
+resource function options searchDoctors() returns http:Response {
+    http:Response res = new;
+    http:Response cORSHeaders = setCORSHeaders(res);
+    res.addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+     res.addHeader("Access-Control-Allow-Origin", "*");
+    return res;
+}
+resource function options scheduleAppointment() returns http:Response {
+    http:Response res = new;
+    http:Response cORSHeaders = setCORSHeaders(res);
+    res.addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    return res;
+}
 
     
 }

@@ -1,0 +1,49 @@
+.appointments-container {
+    padding: 20px;
+    background-color: #f9f9f9; /* Light background for contrast */
+    border-radius: 8px; /* Rounded corners */
+  }
+  
+  .appointments-container h2 {
+    margin-bottom: 20px;
+    color: #333; /* Darker text for headings */
+  }
+  
+  .appointments-container input {
+    padding: 10px;
+    border: 1px solid #ccc; /* Border for input */
+    border-radius: 4px; /* Rounded corners */
+    margin-right: 10px;
+    width: 300px; /* Fixed width for input */
+  }
+  
+  .appointments-container button {
+    padding: 10px 15px;
+    background-color: #007bff; /* Button color */
+    color: white; /* Text color for button */
+    border: none; /* Remove default border */
+    border-radius: 4px; /* Rounded corners */
+    cursor: pointer; /* Pointer cursor for button */
+  }
+  
+  .appointments-container button:hover {
+    background-color: #0056b3; /* Darker button color on hover */
+  }
+  
+  .appointments-container ul {
+    list-style: none; /* Remove bullet points */
+    padding: 0; /* Remove padding */
+  }
+  
+  .appointments-container li {
+    background-color: #fff; /* White background for list items */
+    padding: 15px;
+    border: 1px solid #ccc; /* Border for list items */
+    border-radius: 4px; /* Rounded corners */
+    margin-bottom: 10px; /* Space between items */
+  }
+  
+  .appointments-container li p {
+    margin: 0; /* Remove margin for paragraphs */
+  }
+  

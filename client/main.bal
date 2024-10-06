@@ -67,7 +67,7 @@ public function main() returns error? {
                     doctorDashboard();
                 } else if (role == "patient") {
                     io:println("Welcome Patient!");
-                    patientDashboard();
+                    check patientDashboard(clientEndpoint);
                 } else {
                     io:println("Unknown role. Please contact support.");
                 }
@@ -156,6 +156,48 @@ function extractRoleFromMessage(string message) returns string {
     }
     return "";
 }
+// Function to search for doctors by specialization
+function searchDoctors(http:Client clientEndpoint, string specialization) returns error? {
+    // Make a GET request to search for doctors by specialization
+    http:Response response = check clientEndpoint->get("/user/searchDoctors?specialization=" + specialization);
+
+    // Print the entire response for debugging
+    io:println("Raw response: ", response.getTextPayload());
+
+    // Check if the response is JSON
+    string contentType = check response.getHeader("content-type");
+    io:println("Content type: ", contentType); // Debug content type
+
+    if contentType.startsWith("application/json") {
+        json|error jsonResponse = response.getJsonPayload();
+        if jsonResponse is json {
+            // Print the list of doctors returned by the server
+            io:println("Doctors found with specialization '" + specialization + "':");
+            io:println(jsonResponse.toString());
+        } else {
+            log:printError("Error occurred while retrieving the JSON payload from the response.");
+            io:println("An error occurred while searching for doctors.");
+        }
+    } else {
+        io:println("Unexpected response format from server. Please contact support.");
+    }
+    return;
+}
+// Function to schedule an appointment
+function scheduleAppointment(http:Client clientEndpoint, string doctorId, string date, string time) returns json|error {
+    // Define appointment data
+    json appointmentData = {
+        doctorId: doctorId,
+        date: date,
+        time: time
+    };
+
+    // Make the POST request to schedule the appointment
+    http:Response response = check clientEndpoint->post("/appointments/schedule", appointmentData);
+    json responseBody = check response.getJsonPayload();
+    return responseBody;
+}
+
 
 // Function for doctor dashboard and features
 function doctorDashboard() {
@@ -174,7 +216,7 @@ function doctorDashboard() {
 }
 
 // Function for patient dashboard and features
-function patientDashboard() {
+function patientDashboard(http:Client clientEndpoint) returns error? {
     // Display patient options and handle patient-specific operations
     io:println("1. Search for Doctors");
     io:println("2. Schedule Appointment");
@@ -183,9 +225,36 @@ function patientDashboard() {
 
     string option = io:readln();
     match option {
-        "1" => {io:println("Enter specialization to search for doctors:");}
-        "2" => {io:println("Scheduling appointment...");}
-        "3" => {io:println("Uploading health record...");}
+        "1" => {   io:println("Enter specialization to search for doctors:");
+            string specialization = io:readln();
+            check searchDoctors(clientEndpoint, specialization);
+        
+        
+        }
+        "2" => { io:println("Enter Doctor's ID to schedule an appointment:");
+            string doctorId = io:readln();
+
+            io:println("Enter preferred date (YYYY-MM-DD):");
+            string date = io:readln();
+
+            io:println("Enter preferred time (HH:MM):");
+            string time = io:readln();
+
+            // Call the scheduleAppointment function
+            var appointmentResponse = scheduleAppointment(clientEndpoint, doctorId, date, time);
+            if (appointmentResponse is error) {
+                io:println("Failed to schedule appointment: " + appointmentResponse.message());
+                return;
+            }
+
+            io:println("Appointment successfully scheduled!");
+        }
+        
+        
+        "3" => {io:println("Uploading health record...");
+        
+        
+    }
         "4" => {io:println("Messaging doctor...");}
         _ =>{ io:println("Invalid option");}
     }

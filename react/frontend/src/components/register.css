@@ -1,4 +1,4 @@
-/* login.css */
+/* register.css */
 
 body {
     margin: 0;
@@ -8,15 +8,15 @@ body {
     background-size: cover;
 }
 
-.login-container {
+.register-container {
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100vh;
-    background:rgba(33, 32, 32, 0.5); /* Dark overlay for better contrast */
+    background: rgba(33, 32, 32, 0.5); /* Dark overlay for better contrast */
 }
 
-.login-form {
+.register-form {
     background: rgb(222, 224, 226);
     padding: 50px; /* Added more padding for comfort */
     border-radius: 20px;
@@ -25,12 +25,12 @@ body {
     text-align: center;
 }
 
-.login-form h2 {
+.register-form h2 {
     margin-bottom: 20px;
     color: #333; /* Dark text for better visibility */
 }
 
-input {
+input, select {
     width: 100%;
     padding: 10px;
     margin-bottom: 15px;
@@ -39,7 +39,7 @@ input {
     transition: border-color 0.3s;
 }
 
-input:focus {
+input:focus, select:focus {
     border-color: #007bff; /* Change border color on focus */
     outline: none; /* Remove default outline */
 }
@@ -59,14 +59,8 @@ button:hover {
     background-color: #0056b3; /* Darker shade on hover */
 }
 
-/* Optional: Style for error messages */
-.error-message {
-    color: red; /* Red text for error messages */
-    margin-bottom: 15px;
-
-}
-.register-link {
-    margin-top: 15px; /* Spacing above the link */
+/* Optional: Style for messages */
+.message {
+    margin-top: 15px;
     font-size: 14px; /* Slightly smaller font size */
 }
-

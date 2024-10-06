@@ -8,6 +8,9 @@ configurable string username = "username";
 configurable string password = "password";
 configurable string database = "Telemedicine";
 
+
+
+
 // MongoDB client configuration with authentication
 mongodb:Client mongoDb = check new ({
     connection: {
@@ -17,6 +20,13 @@ mongodb:Client mongoDb = check new ({
         }
     }
 });
+function setCORSHeaders(http:Response res) returns http:Response {
+    res.addHeader("Access-Control-Allow-Origin", "*");
+    res.addHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.addHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    return res;
+}
+
  function createErrorResponse(string message) returns http:Response|error {
         json errorResponse = {"status": "error", "message": message};
         http:Response response = new;
@@ -44,6 +54,7 @@ service /user on new http:Listener(8080) {
     }
 
    resource function post register(UserInput input) returns http:Response|error {
+    
     mongodb:Collection usersCollection = check self.TelemedicineDb->getCollection("users");
 
     // Check if user already exists
@@ -83,28 +94,30 @@ service /user on new http:Listener(8080) {
 
  
     // User Login
-    resource function post login(LoginInput input) returns http:Response|error {
-        mongodb:Collection usersCollection = check self.TelemedicineDb->getCollection("users");
+   resource function post login(LoginInput input) returns http:Response|error {
+    mongodb:Collection usersCollection = check self.TelemedicineDb->getCollection("users");
 
-        // Find user by username and password
-        stream<User, error?> resultStream = check usersCollection->aggregate([{
-            \$match: {
-                username: input.username,
-                password: input.password // Ensure passwords are hashed in production
-            }
-        }]);
+    stream<User, error?> resultStream = check usersCollection->aggregate([{
+        \$match: {
+            username: input.username,
+            password: input.password
+        }
+    }]);
 
-      var result = resultStream.next();
-if result is record {| User value; |} {
-    string userId = result.value.id.toString();  // Convert the user ID to string
-    string role = result.value.role.toString();  // Convert the role to string
+    var result = resultStream.next();
 
-    // Include both the user ID and role in the response message
-    return createSuccessResponse("Login successful! User ID: " + userId + ", Role: " + role);
-} else {
-    return check createErrorResponse("Invalid credentials.");
-}
+    if result is record {| User value; |} {
+        string userId = result.value.id.toString();
+        string role = result.value.role.toString();
+
+        http:Response res = check createSuccessResponse("Login successful! User ID: " + userId + ", Role: " + role);
+        return setCORSHeaders(res);
+    } else {
+        http:Response errorRes = check createErrorResponse("Invalid credentials.");
+        return setCORSHeaders(errorRes);
     }
+}
+
 
 
  resource function post scheduleAppointment(AppointmentInput input, string patientId) returns http:Response|error {
@@ -173,11 +186,29 @@ resource function get doctorDashboard(string doctorId) returns json|error {
 //Patient Profile Implementation
 //serach doctor
 resource function get searchDoctors(string specialization) returns json|error {
+    // Get the collection
     mongodb:Collection usersCollection = check self.TelemedicineDb->getCollection("users");
+
+    // Find doctors with the matching specialization
     stream<User, error?> resultStream = check usersCollection->find({role: "doctor", specialization: specialization});
-    json doctors = resultStream.toString();
-    return doctors;
+
+    // Initialize an empty array to collect doctor details
+    json[] doctorList = [];
+
+    // Iterate over the resultStream and build the JSON array
+    error? e = resultStream.forEach(function(User doctor) {
+        json doctorJson = {
+            "name": doctor.username,
+            "specialization": doctor.specialization
+            
+        };
+        doctorList.push(doctorJson);  // Add each doctor to the list
+    });
+
+    // Return the list of doctors as a JSON array
+    return doctorList;
 }
+
 
 //upload health record
 resource function post uploadHealthRecord(string patientId, HealthRecordInput input) returns http:Response|error {
@@ -195,6 +226,12 @@ resource function post uploadHealthRecord(string patientId, HealthRecordInput in
     check healthRecordsCollection->insertOne(newRecord);
     
     return createSuccessResponse("Health record uploaded successfully.");
+}
+resource function options login() returns http:Response {
+    http:Response res = new;
+    http:Response cORSHeaders = setCORSHeaders(res);
+    res.addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    return res;
 }
 
 

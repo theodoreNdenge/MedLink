@@ -16,6 +16,7 @@ const Login = () => {
                 username: username,
                 password: password
             });
+            console.log('Response:', response.data);
 
             if (response.status === 200) {
                 alert('Login successful!');

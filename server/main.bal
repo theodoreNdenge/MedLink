@@ -62,7 +62,8 @@ service /user on new http:Listener(8080) {
         username: input.username
     });
     if existingUser is User {
-        return createErrorResponse("User already exists.");
+         http:Response errorRes = check createErrorResponse("User Already exists");
+        return setCORSHeaders(errorRes);
     }
    
     // Create new user with specialization for doctors
@@ -75,7 +76,8 @@ service /user on new http:Listener(8080) {
     };
 
     check usersCollection->insertOne(newUser);
-    return createSuccessResponse("Registration successful!");
+      http:Response res = check createSuccessResponse("Registration successful!");
+    return  setCORSHeaders(res);
 }
 
   
@@ -228,6 +230,12 @@ resource function post uploadHealthRecord(string patientId, HealthRecordInput in
     return createSuccessResponse("Health record uploaded successfully.");
 }
 resource function options login() returns http:Response {
+    http:Response res = new;
+    http:Response cORSHeaders = setCORSHeaders(res);
+    res.addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    return res;
+}
+resource function options register() returns http:Response {
     http:Response res = new;
     http:Response cORSHeaders = setCORSHeaders(res);
     res.addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");

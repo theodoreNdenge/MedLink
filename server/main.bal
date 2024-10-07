@@ -20,8 +20,8 @@ mongodb:Client mongoDb = check new ({
 
 function setCORSHeaders(http:Response res) returns http:Response {
     res.addHeader("Access-Control-Allow-Origin", "*");
-    res.addHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, userId");
-    res.addHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.addHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.addHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, userId");
     return res;
 }
 
@@ -134,12 +134,13 @@ service /user on new http:Listener(8080) {
 
         // Check if the doctor has any appointments scheduled at the same time
         Appointment|mongodb:DatabaseError|mongodb:ApplicationError|error|() existingAppointment = appointmentsCollection->findOne({
-            doctorId: input.doctorId,
-            appointmentTime: input.appointmentTime
+            "doctorId": input.doctorId,
+            "appointmentTime": input.appointmentTime
         });
 
         if existingAppointment is Appointment {
-            return createErrorResponse("Doctor is not available at the selected time.");
+            http:Response errorRes = check createErrorResponse("Doctor is not available at the selected time.");
+            return setCORSHeaders(errorRes);
         }
 
         // Proceed with scheduling the appointment if the doctor is available
@@ -148,10 +149,14 @@ service /user on new http:Listener(8080) {
             appointmentTime: input.appointmentTime,
             patientId: patientId,
             doctorId: input.doctorId,
-            status: input.status
+            status: input.status,
+            appointmentDate: input.appointmentDate
         };
 
+        // Insert the new appointment into the appointments collection
         check appointmentsCollection->insertOne(appointment);
+
+        // Create a successful response
         http:Response res = check createSuccessResponse("Appointment scheduled successfully.");
         return setCORSHeaders(res);
     }
@@ -190,39 +195,43 @@ service /user on new http:Listener(8080) {
     }
 
     // Doctor Dashboard: View appointments
-    resource function get doctorDashboard(string doctorId) returns json|error {
+    resource function get doctorAppointments(http:Request req) returns error|http:Response {
         mongodb:Collection appointmentsCollection = check self.TelemedicineDb->getCollection("appointments");
+
+        // Extract userId from the request headers
+        string doctorId = check req.getHeader("userId"); // Assuming frontend sends userId in headers
 
         // Find all appointments for this doctor
         stream<Appointment, error?> resultStream = check appointmentsCollection->find({doctorId: doctorId});
-        json appointments = resultStream.toString();
-        return appointments;
+        json appointments = resultStream.toString(); // Convert the stream to JSON
+        http:Response res = check createSuccessResponse(<string>appointments);
+        return setCORSHeaders(res);
     }
 
     //Patient Profile Implementation
-    //serach doctor
-    resource function get searchDoctors(http:Caller caller, http:Request req) returns error? {
-        string? specializationParam = req.getQueryParamValue("specialization");
-        if specializationParam is string {
-            mongodb:Collection usersCollection = check self.TelemedicineDb->getCollection("users");
-            stream<User, error?> resultStream = check usersCollection->find({role: "doctor", specialization: specializationParam});
+    //search doctor
+    resource function get searchDoctors(string specialization) returns json|error {
+        // Get the collection
+        mongodb:Collection usersCollection = check self.TelemedicineDb->getCollection("users");
 
-            json[] doctorList = [];
-            check resultStream.forEach(function(User doctor) {
-                json doctorJson = {
-                    "name": doctor.username,
-                    "specialization": doctor.specialization
-                };
-                doctorList.push(doctorJson);
-            });
+        // Find doctors with the matching specialization
+        stream<User, error?> resultStream = check usersCollection->find({role: "doctor", specialization: specialization});
 
-            check caller->respond(doctorList);
-        } else {
-            http:Response res = new;
-            res.statusCode = 400;
-            res.setPayload({message: "Specialization query parameter is missing"});
-            check caller->respond(res);
-        }
+        // Initialize an empty array to collect doctor details
+        json[] doctorList = [];
+
+        // Iterate over the resultStream and build the JSON array
+        error? e = resultStream.forEach(function(User doctor) {
+            json doctorJson = {
+                "name": doctor.username,
+                "specialization": doctor.specialization
+
+            };
+            doctorList.push(doctorJson); // Add each doctor to the list
+        });
+
+        // Return the list of doctors as a JSON array
+        return doctorList;
     }
 
     //upload health record
@@ -244,6 +253,40 @@ service /user on new http:Listener(8080) {
         check healthRecordsCollection->insertOne(newRecord);
 
         return createSuccessResponse("Health record uploaded successfully.");
+    }
+
+    resource function get listDoctors() returns error|http:Response {
+        // Get the collection
+        mongodb:Collection usersCollection = check self.TelemedicineDb->getCollection("users");
+
+        // Find all doctors without filtering by specialization
+        stream<User, error?> resultStream = check usersCollection->find({role: "doctor"});
+
+        // Initialize an empty array to collect doctor details
+        json[] doctorList = [];
+
+        // Iterate over the resultStream and build the JSON array
+        error? e = resultStream.forEach(function(User doctor) {
+            json doctorJson = {
+                "id": doctor.id,
+                "username": doctor.username,
+                "specialization": doctor.specialization
+            };
+            doctorList.push(doctorJson); // Add each doctor to the list
+        });
+
+        // Return the list of doctors as a JSON array directly
+        http:Response res = new;
+        res.setJsonPayload(doctorList);
+        return setCORSHeaders(res);
+    }
+
+    resource function options listDoctors() returns http:Response {
+        http:Response res = new;
+        http:Response cORSHeaders = setCORSHeaders(res);
+        res.addHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+        res.addHeader("Access-Control-Allow-Origin", "*");
+        return res;
     }
 
     resource function options login() returns http:Response {
@@ -269,6 +312,15 @@ service /user on new http:Listener(8080) {
         return res;
     }
 
+    resource function options scheduleAppointment() returns http:Response {
+        http:Response res = new;
+        http:Response cORSHeaders = setCORSHeaders(res);
+
+        res.addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+
+        return res;
+    }
+
     resource function options sendMessage() returns http:Response {
         http:Response res = new;
         http:Response cORSHeaders = setCORSHeaders(res);
@@ -276,18 +328,12 @@ service /user on new http:Listener(8080) {
         return res;
     }
 
-    //resource function options searchDoctors(http:Caller caller, http:Request req) returns error? {
-    //    http:Response res = new;
-    //    res.addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    //    res.addHeader("Access-Control-Allow-Origin", "*");
-    //    res.addHeader("Access-Control-Allow-Headers", "Content-Type");
-    //    check caller->respond(res);
-    //}
-
-    resource function options scheduleAppointment() returns http:Response {
+    resource function options searchDoctors() returns http:Response {
         http:Response res = new;
         http:Response cORSHeaders = setCORSHeaders(res);
+        res.addHeader("Access-Control-Allow-Origin", "*");
         res.addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+
         return res;
     }
 
@@ -318,6 +364,7 @@ type AppointmentInput record {
     string patientId;
     string doctorId;
     string appointmentTime;
+    string appointmentDate;
     string status; // e.g., "scheduled", "completed"
 };
 
@@ -351,6 +398,7 @@ type Appointment record {
     string doctorId;
     string appointmentTime;
     string status;
+    string appointmentDate;
 
 };
 
@@ -368,3 +416,4 @@ type Message record {
     string content;
     string timestamp;
 };
+

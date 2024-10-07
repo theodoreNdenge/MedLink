@@ -3,7 +3,6 @@ import './patientDashboard.css'; // Create this file for custom styles
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
-
 const PatientDashboard = () => {
     const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
@@ -50,7 +49,7 @@ const PatientDashboard = () => {
   return (
     <div className="dashboard-container">
       <aside className="sidebar">
-        <h2>Patient Dashboard</h2>
+        <h2> Dashboard</h2>
         <nav> 
           <ul>
           <li onClick={() => navigate('/PatientDashboard')}>Dashboard</li> {/* Navigate to dashboard */}
@@ -102,3 +101,4 @@ const PatientDashboard = () => {
 };
 
 export default PatientDashboard;
+

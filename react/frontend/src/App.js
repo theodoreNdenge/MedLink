@@ -5,6 +5,7 @@ import Login from './components/login';
 import DoctorDashboard from './components/DoctorDashboard'
 import PatientDashboard from './components/PatientDashboard'
 import Appointments from './components/Appointments'
+import DoctorAppointments from './components/DoctorAppointments';
 
 const App = () => {
     const role = localStorage.getItem('role'); // Get the role from local storage
@@ -18,7 +19,8 @@ const App = () => {
                 {/* Role-based dashboard routing */}
                 {role === 'patient' && <Route path="/PatientDashboard" element={<PatientDashboard />} />}
                 {role === 'doctor' && <Route path="/DoctorDashboard" element={<DoctorDashboard />} />}
-                <Route path="/appointments" element={<Appointments />} />
+                <Route path="/Appointments" element={<Appointments />} />
+                <Route path="/DoctorAppointments" element={<DoctorAppointments />} />
                 {/* Fallback route for unknown paths */}
                 <Route path="*" element={<Navigate to="/" />} />
 

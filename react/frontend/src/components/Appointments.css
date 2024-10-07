@@ -1,49 +1,160 @@
 .appointments-container {
-    padding: 20px;
-    background-color: #f9f9f9; /* Light background for contrast */
-    border-radius: 8px; /* Rounded corners */
-  }
   
-  .appointments-container h2 {
-    margin-bottom: 20px;
-    color: #333; /* Darker text for headings */
-  }
-  
-  .appointments-container input {
-    padding: 10px;
-    border: 1px solid #ccc; /* Border for input */
-    border-radius: 4px; /* Rounded corners */
-    margin-right: 10px;
-    width: 300px; /* Fixed width for input */
-  }
-  
-  .appointments-container button {
-    padding: 10px 15px;
-    background-color: #007bff; /* Button color */
-    color: white; /* Text color for button */
-    border: none; /* Remove default border */
-    border-radius: 4px; /* Rounded corners */
-    cursor: pointer; /* Pointer cursor for button */
-  }
-  
-  .appointments-container button:hover {
-    background-color: #0056b3; /* Darker button color on hover */
-  }
-  
-  .appointments-container ul {
-    list-style: none; /* Remove bullet points */
-    padding: 0; /* Remove padding */
-  }
-  
-  .appointments-container li {
-    background-color: #fff; /* White background for list items */
-    padding: 15px;
-    border: 1px solid #ccc; /* Border for list items */
-    border-radius: 4px; /* Rounded corners */
-    margin-bottom: 10px; /* Space between items */
-  }
-  
-  .appointments-container li p {
-    margin: 0; /* Remove margin for paragraphs */
-  }
+  border-radius: 8px; /* Rounded corners */
+  flex-grow: 1;
+  background-color: #f5f5f5;
+  padding: 20px;
+}
+
+.appointments-container h2 {
+  margin-bottom: 20px;
+  color: #333; /* Darker text for headings */
+}
+
+.appointments-container input {
+  padding: 10px;
+  border: 1px solid #508e99; /* Border for input */
+  border-radius: 4px; /* Rounded corners */
+  margin-right: 10px;
+  width: 300px; /* Fixed width for input */
+}
+
+.appointments-container button {
+  padding: 10px 10px; /* Smaller padding */
+  background-color: #508e99; /* Button color */
+  color: white; /* Text color for button */
+  border: none; /* Remove default border */
+  border-radius: 4px; /* Rounded corners */
+  cursor: pointer; /* Pointer cursor for button */
+  width: 300px; /* Set a specific width for a shorter button */
+}
+
+
+.appointments-container button:hover {
+  background-color: #256c4a;  /* Darker button color on hover */
+}
+
+.appointments-container ul {
+  list-style: none; /* Remove bullet points */
+  padding: 0; /* Remove padding */
+}
+
+.appointments-container li {
+  background-color: #fff; /* White background for list items */
+  padding: 15px;
+  border: 1px solid #ccc; /* Border for list items */
+  border-radius: 4px; /* Rounded corners */
+  margin-bottom: 10px; /* Space between items */
+}
+
+.appointments-container li p {
+  margin: 0; /* Remove margin for paragraphs */
+}
+.doctor-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid #5ca7c8;
+  margin-bottom: 10px;
+  border-radius: 5px;
+}
+
+.doctor-info {
+  flex-grow: 1;
+}
+
+.schedule-btn {
+  background-color: #508e99; 
+  color: white;
+  padding:   5px;
+  font-size: 14px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+th {
+  background-color: #f2f2f2;
+}
+/* Main content */
+.main-content {
+  flex-grow: 1;
+  background-color: #f5f5f5;
+  padding: 20px;
+}
+.sidebar {
+  background-color: #fff;
+  width: 250px;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar h2 {
+  color: #154f6e;
+  font-size: 24px;
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+}
+
+.sidebar ul li {
+  padding: 15px 0;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.sidebar ul li:hover {
+  background-color: #f0f0f0;
+}
+.modal-content {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px; /* Slightly more rounded corners */
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); /* Softer shadow for depth */
+  min-width: 300px; /* Set a minimum width for the modal */
+  max-width: 90%; /* Ensure it doesn't exceed the viewport width */
+  text-align: center; /* Center text for better readability */
+}
+
+
+
+button[type="submit"] {
+  background-color: #07a355; /* Green background for Confirm button */
+  color: white; /* White text color */
+  padding: 10px ; /* Increase padding for better click area */
+  border: none;
+  border-radius: 5px; /* Rounded button corners */
+  cursor: pointer;
+  transition: background-color 0.3s; /* Smooth transition for hover effect */
+  margin: 10px ; /* Add vertical margin for spacing */
+}
+
+button[type="button"] {
+  background-color: #93130a; /* Red background for Cancel button */
+  color: white; /* White text color */
+}
+
+/* Optional: Add hover effect for buttons */
+button[type="submit"]:hover {
+  background-color: #45a049; /* Darker green on hover */
+}
+
+button[type="button"]:hover {
+  background-color: #e53935; /* Darker red on hover */
+}
+
   

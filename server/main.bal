@@ -33,6 +33,21 @@ function createErrorResponse(string message) returns http:Response|error {
     response.statusCode = 500;
     return response;
 }
+function getAnswer(string question) returns string {
+    // Convert question to lowercase for case-insensitive comparison
+    string lowerCaseQuestion = question.toLowerAscii();
+
+    // Check if the question contains key phrases
+    if (lowerCaseQuestion.includes("improve my sleep")) {
+        return "Try sticking to a consistent sleep schedule, avoiding screens before bed, and creating a relaxing bedtime routine.";
+    } else if  (lowerCaseQuestion.includes("eat for more energy")) {
+        return  "Incorporate whole grains, lean proteins, and plenty of fruits and vegetables into your diet.";
+    } else if (lowerCaseQuestion.includes("reduce stress")) {
+        return "Consider practicing mindfulness, doing regular physical activity, and ensuring you take breaks throughout the day.";
+    } else {
+        return "I'm sorry, I don't have information on that topic. Can I help with something else?";
+    }
+}
 
 function createSuccessResponse(string message) returns http:Response|error {
     json successResponse = {"status": "success", "message": message};
@@ -309,6 +324,28 @@ service /user on new http:Listener(8080) {
         res.addHeader("Access-Control-Allow-Origin", "*");
         return res;
     }
+     resource function get answer(http:Caller caller, http:Request req, string question) returns error? {
+        http:Response res = new;
+        // Set CORS headers to allow requests from localhost:3000
+        res.setHeader("Access-Control-Allow-Origin", "http://localhost:3000");
+        res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+        // Process the request and respond
+        string responseMessage = getAnswer(question);
+        res.setPayload(responseMessage);
+        check caller->respond(res);
+    }
+
+    // Handle OPTIONS preflight requests for CORS
+    resource function options answer(http:Caller caller, http:Request req) returns error? {
+        http:Response res = new;
+        res.setHeader("Access-Control-Allow-Origin", "http://localhost:3000");
+        res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+        check caller->respond(res);
+    }
+
 
     resource function options login() returns http:Response {
         http:Response res = new;

@@ -113,7 +113,7 @@ const Appointments = () => {
             <li>Prescription</li>
             <li>Medical Tests</li>
             <li>Health Records</li>
-            <li>Wellness Chatbot</li>
+            <li onClick={() => navigate('/wellness-bot')}>Wellness Chatbot</li>
             <li>Settings</li>
           </ul>
         </nav>

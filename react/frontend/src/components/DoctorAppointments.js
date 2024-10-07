@@ -10,8 +10,8 @@ const DoctorAppointments = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [appointmentTime, setAppointmentTime] = useState(''); 
-  const [appointmentDate, setAppointmentDate] = useState(''); 
+  const [appointmentTime, setAppointmentTime] = useState('');
+  const [appointmentDate, setAppointmentDate] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -25,8 +25,9 @@ const DoctorAppointments = () => {
         headers: { userId: userId }
       });
 
-      if (Array.isArray(response.data)) {
-        setAppointments(response.data);
+      // Check if the response contains the appointments array
+      if (response.data && response.data.appointments) {
+        setAppointments(response.data.appointments);
       } else {
         console.error('Unexpected response format:', response.data);
         setErrorMessage('Error fetching appointments.');

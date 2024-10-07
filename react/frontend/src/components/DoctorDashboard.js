@@ -16,13 +16,13 @@ const DoctorDashboard = () => {
         const userId = localStorage.getItem('userId'); // Get user ID from local storage
         
         // Fetch appointments for the doctor
-        const appointmentsResponse = await axios.get(`http://localhost:8080/user/doctorAppointments`, {
+        const appointmentsResponse = await axios.get('http://localhost:8080/user/doctorAppointments', {
           headers: { 'userId': userId }
         });
         setAppointments(appointmentsResponse.data);
 
         // Fetch messages (assuming an endpoint exists for this)
-        const messagesResponse = await axios.get(`http://localhost:8080/user/messages`, {
+        const messagesResponse = await axios.get('http://localhost:8080/user/messages', {
           headers: { 'userId': userId }
         });
         setMessages(messagesResponse.data);
@@ -63,10 +63,10 @@ const DoctorDashboard = () => {
           <h3>Your Appointments</h3>
           <div className="appointments">
             {appointments.length > 0 ? (
-              appointments.map((appointment) => (
-                <div className="appointment" key={appointment.id}>
-                  <p>{appointment.patientId}</p> {/* Assuming patientId is being used */}
-                  <span>{appointment.appointmentTime}</span>
+              appointments.map((appointments) => (
+                <div className="appointment" key={appointments.id}>
+                  <p>{appointments.patientId}</p> {/* Assuming patientId is being used */}
+                  <span>{appointments.appointmentTime}</span>
                 </div>
               ))
             ) : (

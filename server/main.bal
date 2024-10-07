@@ -199,12 +199,33 @@ service /user on new http:Listener(8080) {
         mongodb:Collection appointmentsCollection = check self.TelemedicineDb->getCollection("appointments");
 
         // Extract userId from the request headers
-        string doctorId = check req.getHeader("userId"); // Assuming frontend sends userId in headers
+        string? doctorId = check req.getHeader("userId");
+        if doctorId is () {
+            // Return an error response if doctorId is not found
+            return createErrorResponse("Doctor ID is required in headers");
+        }
 
         // Find all appointments for this doctor
-        stream<Appointment, error?> resultStream = check appointmentsCollection->find({doctorId: doctorId});
-        json appointments = resultStream.toString(); // Convert the stream to JSON
-        http:Response res = check createSuccessResponse(<string>appointments);
+        stream<AppointmentInput, error?> resultStream = check appointmentsCollection->find({doctorId: doctorId});
+
+        json[] appointmentsList = [];
+        error? e = resultStream.forEach(function(AppointmentInput appointments) {
+            json appointmentJson = {
+                "patientId": appointments.patientId,
+                "status": appointments.status,
+                "appointmentTime": appointments.appointmentTime,
+                "appointmentDate": appointments.appointmentDate
+            };
+            appointmentsList.push(appointments.toJson());
+        });
+
+        if e is error {
+            return createErrorResponse("Error retrieving appointments");
+        }
+
+        // Return the list of appointments as JSON
+        json response = {appointments: appointmentsList};
+        http:Response res = check createSuccessResponse(response.toString());
         return setCORSHeaders(res);
     }
 

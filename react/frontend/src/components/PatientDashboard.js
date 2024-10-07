@@ -4,7 +4,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
 
-const Dashboard = () => {
+const PatientDashboard = () => {
     const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
   const [userId, setUserId] = useState('');
@@ -44,7 +44,7 @@ const Dashboard = () => {
     }
   };
   const handleNavigateToAppointments = () => {
-    navigate('/appointments'); // Use navigate to go to the Appointments page
+    navigate('/Appointments'); // Use navigate to go to the Appointments page
   };
 
   return (
@@ -53,7 +53,7 @@ const Dashboard = () => {
         <h2>Patient Dashboard</h2>
         <nav> 
           <ul>
-          <li onClick={() => navigate('/patient-dashboard')}>Dashboard</li> {/* Navigate to dashboard */}
+          <li onClick={() => navigate('/PatientDashboard')}>Dashboard</li> {/* Navigate to dashboard */}
           <li onClick={handleNavigateToAppointments}>Appointments</li> {/* Navigate to appointments */}
             <li>Prescription</li>
             <li>Medical Tests</li>
@@ -101,4 +101,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard;
+export default PatientDashboard;

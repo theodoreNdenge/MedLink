@@ -37,9 +37,9 @@ const Login = () => {
                     // Redirect based on the role
                     if (userRole === 'patient') {
                         console.log("Redirecting to patient dashboard...");
-                        navigate('/patient-dashboard'); // Redirect to patient dashboard
+                        navigate('/PatientDashboard'); // Redirect to patient dashboard
                     } else if (userRole === 'doctor') {
-                        navigate('/doctor-dashboard'); // Redirect to doctor dashboard
+                        navigate('/DoctorDashboard'); // Redirect to doctor dashboard
                     }
                 } else {
                     alert('Failed to determine user role. Please try again.');

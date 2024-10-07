@@ -1,31 +1,25 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 import './Appointments.css'; // Import the CSS file
 
 const Appointments = () => {
   const [doctors, setDoctors] = useState([]);
-  const [specialization, setSpecialization] = useState('');
-  const [filteredDoctors, setFilteredDoctors] = useState([]);
-
-  useEffect(() => {
-    fetchDoctors();
-  }, []);
+  const specialization = document.getElementById('specialization').value;
 
   const fetchDoctors = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/user/doctors'); // Adjust the API endpoint as needed
+      const response = await axios.post('http://localhost:8080/user/searchDoctors', {
+        specialization: specialization
+      });
+      console.log('Response:', response.data);
       setDoctors(response.data);
-      setFilteredDoctors(response.data); // Initialize filtered doctors with all doctors
     } catch (error) {
-      console.error('Error fetching doctors:', error);
+      console.error('Error searching for doctors:', error);
     }
   };
 
   const handleSearch = () => {
-    const filtered = doctors.filter(doctor =>
-      doctor.specialization.toLowerCase().includes(specialization.toLowerCase())
-    );
-    setFilteredDoctors(filtered);
+    fetchDoctors();
   };
 
   return (
@@ -43,7 +37,7 @@ const Appointments = () => {
 
       <h3>Available Doctors:</h3>
       <ul>
-        {filteredDoctors.map(doctor => (
+        {doctors.map(doctor => (
           <li key={doctor.id}>
             <p>{doctor.name} - {doctor.specialization}</p>
             <button onClick={() => scheduleAppointment(doctor.id)}>Schedule Appointment</button>

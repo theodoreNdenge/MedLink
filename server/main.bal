@@ -8,9 +8,6 @@ configurable string username = "username";
 configurable string password = "password";
 configurable string database = "Telemedicine";
 
-
-
-
 // MongoDB client configuration with authentication
 mongodb:Client mongoDb = check new ({
     connection: {
@@ -28,23 +25,23 @@ function setCORSHeaders(http:Response res) returns http:Response {
     return res;
 }
 
- function createErrorResponse(string message) returns http:Response|error {
-        json errorResponse = {"status": "error", "message": message};
-        http:Response response = new;
-        response.setJsonPayload(errorResponse);
-        check response.setContentType("application/json");
-        response.statusCode = 500;
-        return response;
-    }
+function createErrorResponse(string message) returns http:Response|error {
+    json errorResponse = {"status": "error", "message": message};
+    http:Response response = new;
+    response.setJsonPayload(errorResponse);
+    check response.setContentType("application/json");
+    response.statusCode = 500;
+    return response;
+}
 
-    function createSuccessResponse(string message) returns http:Response|error {
-        json successResponse = {"status": "success", "message": message};
-        http:Response response = new;
-        response.setJsonPayload(successResponse);
-        check response.setContentType("application/json");
-        response.statusCode = 200;
-        return response;
-    }
+function createSuccessResponse(string message) returns http:Response|error {
+    json successResponse = {"status": "success", "message": message};
+    http:Response response = new;
+    response.setJsonPayload(successResponse);
+    check response.setContentType("application/json");
+    response.statusCode = 200;
+    return response;
+}
 
 service /user on new http:Listener(8080) {
 
@@ -54,34 +51,33 @@ service /user on new http:Listener(8080) {
         self.TelemedicineDb = check mongoDb->getDatabase("Telemedicine");
     }
 
-   resource function post register(UserInput input) returns http:Response|error {
-    
-    mongodb:Collection usersCollection = check self.TelemedicineDb->getCollection("users");
+    resource function post register(UserInput input) returns http:Response|error {
 
-    // Check if user already exists
-    User|mongodb:DatabaseError|mongodb:ApplicationError|error|() existingUser = usersCollection->findOne({
-        username: input.username
-    });
-    if existingUser is User {
-         http:Response errorRes = check createErrorResponse("User Already exists");
-        return setCORSHeaders(errorRes);
+        mongodb:Collection usersCollection = check self.TelemedicineDb->getCollection("users");
+
+        // Check if user already exists
+        User|mongodb:DatabaseError|mongodb:ApplicationError|error|() existingUser = usersCollection->findOne({
+            username: input.username
+        });
+        if existingUser is User {
+            http:Response errorRes = check createErrorResponse("User Already exists");
+            return setCORSHeaders(errorRes);
+        }
+
+        // Create new user with specialization for doctors
+        User newUser = {
+            id: uuid:createType1AsString(),
+            username: input.username,
+            password: input.password, // Store hashed password in production
+            role: input.role,
+            specialization: input.role == "doctor" ? input.specialization : ""
+        };
+
+        check usersCollection->insertOne(newUser);
+        http:Response res = check createSuccessResponse("Registration successful!");
+        return setCORSHeaders(res);
     }
-   
-    // Create new user with specialization for doctors
-    User newUser = {
-        id: uuid:createType1AsString(),
-        username: input.username,
-        password: input.password, // Store hashed password in production
-        role: input.role,
-        specialization: input.role == "doctor" ? input.specialization : ""
-    };
 
-    check usersCollection->insertOne(newUser);
-      http:Response res = check createSuccessResponse("Registration successful!");
-    return  setCORSHeaders(res);
-}
-
-  
     // Fetch User Details
     resource function get details(string username) returns User|error {
         mongodb:Collection usersCollection = check self.TelemedicineDb->getCollection("users");
@@ -95,207 +91,206 @@ service /user on new http:Listener(8080) {
         }
     }
 
- 
     // User Login
-  resource function post login(LoginInput input) returns http:Response|error {
-    mongodb:Collection usersCollection = check self.TelemedicineDb->getCollection("users");
+    resource function post login(LoginInput input) returns http:Response|error {
+        mongodb:Collection usersCollection = check self.TelemedicineDb->getCollection("users");
 
-    stream<User, error?> resultStream = check usersCollection->aggregate([{
-        \$match: {
-            username: input.username,
-            password: input.password
+        stream<User, error?> resultStream = check usersCollection->aggregate([
+            {
+                \$match: {
+                    username: input.username,
+                    password: input.password
+                }
+            }
+        ]);
+
+        var result = resultStream.next();
+
+        if result is record {|User value;|} {
+            string userId = result.value.id.toString();
+            string role = result.value.role.toString();
+            string username = result.value.username.toString();
+
+            // Include the userId in the success response
+            json responseBody = {
+                "status": "success",
+                "message": "Login successful!",
+                "userId": userId, // Return userId to the client
+                "role": role,
+                "username": username
+            };
+
+            http:Response res = new;
+            res.setJsonPayload(responseBody);
+            return setCORSHeaders(res);
+        } else {
+            http:Response errorRes = check createErrorResponse("Invalid credentials.");
+            return setCORSHeaders(errorRes);
         }
-    }]);
+    }
 
-    var result = resultStream.next();
+    resource function post scheduleAppointment(AppointmentInput input, string patientId) returns http:Response|error {
+        mongodb:Collection appointmentsCollection = check self.TelemedicineDb->getCollection("appointments");
 
-    if result is record {| User value; |} {
-        string userId = result.value.id.toString();
-        string role = result.value.role.toString();
-        string username = result.value.username.toString();
+        // Check if the doctor has any appointments scheduled at the same time
+        Appointment|mongodb:DatabaseError|mongodb:ApplicationError|error|() existingAppointment = appointmentsCollection->findOne({
+            doctorId: input.doctorId,
+            appointmentTime: input.appointmentTime
+        });
 
-        // Include the userId in the success response
-        json responseBody = {
-            "status": "success",
-            "message": "Login successful!",
-            "userId": userId, // Return userId to the client
-            "role": role,
-            "username": username
+        if existingAppointment is Appointment {
+            return createErrorResponse("Doctor is not available at the selected time.");
+        }
+
+        // Proceed with scheduling the appointment if the doctor is available
+        Appointment appointment = {
+            id: uuid:createType1AsString(),
+            appointmentTime: input.appointmentTime,
+            patientId: patientId,
+            doctorId: input.doctorId,
+            status: input.status
         };
 
-        http:Response res = new;
-        res.setJsonPayload(responseBody);
+        check appointmentsCollection->insertOne(appointment);
+        http:Response res = check createSuccessResponse("Appointment scheduled successfully.");
         return setCORSHeaders(res);
-    } else {
-        http:Response errorRes = check createErrorResponse("Invalid credentials.");
-        return setCORSHeaders(errorRes);
     }
-}
-
-
-
-
- resource function post scheduleAppointment(AppointmentInput input, string patientId) returns http:Response|error {
-    mongodb:Collection appointmentsCollection = check self.TelemedicineDb->getCollection("appointments");
-
-    // Check if the doctor has any appointments scheduled at the same time
-    Appointment|mongodb:DatabaseError|mongodb:ApplicationError|error|() existingAppointment = appointmentsCollection->findOne({
-        doctorId: input.doctorId,
-        appointmentTime: input.appointmentTime
-    });
-    
-    if existingAppointment is Appointment {
-        return createErrorResponse("Doctor is not available at the selected time.");
-    }
-
-    // Proceed with scheduling the appointment if the doctor is available
-    Appointment appointment = {
-        id: uuid:createType1AsString(),
-        appointmentTime: input.appointmentTime,
-        patientId: patientId,
-        doctorId: input.doctorId,
-        status: input.status
-    };
-
-    check appointmentsCollection->insertOne(appointment);
-     http:Response res = check createSuccessResponse("Appointment scheduled successfully.");
-    return  setCORSHeaders(res);
-}
-
-
 
     // Patient-Doctor Messaging
-resource function post sendMessage(MessageInput input) returns http:Response|error {
-    mongodb:Collection messagesCollection = check self.TelemedicineDb->getCollection("messages");
+    resource function post sendMessage(MessageInput input) returns http:Response|error {
+        mongodb:Collection messagesCollection = check self.TelemedicineDb->getCollection("messages");
 
-    Message message = {
-        id: uuid:createType1AsString(),
-        senderId: input.senderId,
-        recipientId: input.recipientId,
-        content: input.content,
-        timestamp: input.timestamp
-    };
+        Message message = {
+            id: uuid:createType1AsString(),
+            senderId: input.senderId,
+            recipientId: input.recipientId,
+            content: input.content,
+            timestamp: input.timestamp
+        };
 
-    check messagesCollection->insertOne(message);
+        check messagesCollection->insertOne(message);
 
-     http:Response res = check createSuccessResponse("Message Sent successfully.");
-    return  setCORSHeaders(res);
-    
-}
+        http:Response res = check createSuccessResponse("Message Sent successfully.");
+        return setCORSHeaders(res);
+
+    }
 
     // Patient Dashboard: View appointments
-resource function get patientDashboard(http:Request req) returns error|http:Response {
-    mongodb:Collection appointmentsCollection = check self.TelemedicineDb->getCollection("appointments");
+    resource function get patientDashboard(http:Request req) returns error|http:Response {
+        mongodb:Collection appointmentsCollection = check self.TelemedicineDb->getCollection("appointments");
 
-    // Extract userId from the request headers or body
-    string patientId = check req.getHeader("userId");  // Assuming frontend sends userId in headers
+        // Extract userId from the request headers or body
+        string patientId = check req.getHeader("userId"); // Assuming frontend sends userId in headers
 
-    // Find all appointments for this patient
-    stream<Appointment, error?> resultStream = check appointmentsCollection->find({patientId: patientId});
-    json appointments = resultStream.toString();
-    http:Response res = check createSuccessResponse(<string>appointments);
-    return  setCORSHeaders(res);
-}
+        // Find all appointments for this patient
+        stream<Appointment, error?> resultStream = check appointmentsCollection->find({patientId: patientId});
+        json appointments = resultStream.toString();
+        http:Response res = check createSuccessResponse(<string>appointments);
+        return setCORSHeaders(res);
+    }
 
+    // Doctor Dashboard: View appointments
+    resource function get doctorDashboard(string doctorId) returns json|error {
+        mongodb:Collection appointmentsCollection = check self.TelemedicineDb->getCollection("appointments");
 
-// Doctor Dashboard: View appointments
-resource function get doctorDashboard(string doctorId) returns json|error {
-    mongodb:Collection appointmentsCollection = check self.TelemedicineDb->getCollection("appointments");
+        // Find all appointments for this doctor
+        stream<Appointment, error?> resultStream = check appointmentsCollection->find({doctorId: doctorId});
+        json appointments = resultStream.toString();
+        return appointments;
+    }
 
-    // Find all appointments for this doctor
-    stream<Appointment, error?> resultStream = check appointmentsCollection->find({doctorId: doctorId});
-    json appointments = resultStream.toString();
-    return appointments;
-}
-//Patient Profile Implementation
-//serach doctor
-resource function get searchDoctors(string specialization) returns json|error {
-    // Get the collection
-    mongodb:Collection usersCollection = check self.TelemedicineDb->getCollection("users");
+    //Patient Profile Implementation
+    //serach doctor
+    resource function get searchDoctors(http:Caller caller, http:Request req) returns error? {
+        string? specializationParam = req.getQueryParamValue("specialization");
+        if specializationParam is string {
+            mongodb:Collection usersCollection = check self.TelemedicineDb->getCollection("users");
+            stream<User, error?> resultStream = check usersCollection->find({role: "doctor", specialization: specializationParam});
 
-    // Find doctors with the matching specialization
-    stream<User, error?> resultStream = check usersCollection->find({role: "doctor", specialization: specialization});
+            json[] doctorList = [];
+            check resultStream.forEach(function(User doctor) {
+                json doctorJson = {
+                    "name": doctor.username,
+                    "specialization": doctor.specialization
+                };
+                doctorList.push(doctorJson);
+            });
 
-    // Initialize an empty array to collect doctor details
-    json[] doctorList = [];
+            check caller->respond(doctorList);
+        } else {
+            http:Response res = new;
+            res.statusCode = 400;
+            res.setPayload({message: "Specialization query parameter is missing"});
+            check caller->respond(res);
+        }
+    }
 
-    // Iterate over the resultStream and build the JSON array
-    error? e = resultStream.forEach(function(User doctor) {
-        json doctorJson = {
-            "name": doctor.username,
-            "specialization": doctor.specialization
-            
+    //upload health record
+    resource function post uploadHealthRecord(http:Request req, HealthRecordInput input) returns http:Response|error {
+        mongodb:Collection healthRecordsCollection = check self.TelemedicineDb->getCollection("health_records");
+
+        // Get the userId from the request body or headers
+        string userId = check req.getHeader("userId"); // Assuming frontend sends userId in headers
+
+        // Construct the health record object
+        HealthRecordInput newRecord = {
+            id: uuid:createType1AsString(),
+            patientId: userId,
+            recordUrl: input.recordUrl,
+            timestamp: input.timestamp
         };
-        doctorList.push(doctorJson);  // Add each doctor to the list
-    });
 
-    // Return the list of doctors as a JSON array
-    return doctorList;
-}
+        // Insert the health record into the collection
+        check healthRecordsCollection->insertOne(newRecord);
 
+        return createSuccessResponse("Health record uploaded successfully.");
+    }
 
-//upload health record
-resource function post uploadHealthRecord(http:Request req, HealthRecordInput input) returns http:Response|error {
-    mongodb:Collection healthRecordsCollection = check self.TelemedicineDb->getCollection("health_records");
+    resource function options login() returns http:Response {
+        http:Response res = new;
+        http:Response cORSHeaders = setCORSHeaders(res);
+        res.addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+        return res;
+    }
 
-    // Get the userId from the request body or headers
-    string userId = check req.getHeader("userId");  // Assuming frontend sends userId in headers
+    resource function options register() returns http:Response {
+        http:Response res = new;
+        http:Response cORSHeaders = setCORSHeaders(res);
+        res.addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+        return res;
+    }
 
-    // Construct the health record object
-    HealthRecordInput newRecord = {
-        id: uuid:createType1AsString(),
-        patientId: userId,
-        recordUrl: input.recordUrl,
-        timestamp: input.timestamp
-    };
+    resource function options patientDashboard() returns http:Response {
+        http:Response res = new;
+        http:Response cORSHeaders = setCORSHeaders(res);
+        res.addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        res.addHeader("Access-Control-Allow-Headers", "userId, Content-Type");
 
-    // Insert the health record into the collection
-    check healthRecordsCollection->insertOne(newRecord);
+        return res;
+    }
 
-    return createSuccessResponse("Health record uploaded successfully.");
-}
+    resource function options sendMessage() returns http:Response {
+        http:Response res = new;
+        http:Response cORSHeaders = setCORSHeaders(res);
+        res.addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+        return res;
+    }
 
-resource function options login() returns http:Response {
-    http:Response res = new;
-    http:Response cORSHeaders = setCORSHeaders(res);
-    res.addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    return res;
-}
-resource function options register() returns http:Response {
-    http:Response res = new;
-    http:Response cORSHeaders = setCORSHeaders(res);
-    res.addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    return res;
-}
-resource function options patientDashboard() returns http:Response {
-    http:Response res = new;
-    http:Response cORSHeaders = setCORSHeaders(res);
-    res.addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    res.addHeader("Access-Control-Allow-Headers", "userId, Content-Type");
-   
-    return res;
-}
-resource function options sendMessage() returns http:Response {
-    http:Response res = new;
-    http:Response cORSHeaders = setCORSHeaders(res);
-    res.addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    return res;
-}
-resource function options searchDoctors() returns http:Response {
-    http:Response res = new;
-    http:Response cORSHeaders = setCORSHeaders(res);
-    res.addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-     res.addHeader("Access-Control-Allow-Origin", "*");
-    return res;
-}
-resource function options scheduleAppointment() returns http:Response {
-    http:Response res = new;
-    http:Response cORSHeaders = setCORSHeaders(res);
-    res.addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    return res;
-}
+    //resource function options searchDoctors(http:Caller caller, http:Request req) returns error? {
+    //    http:Response res = new;
+    //    res.addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    //    res.addHeader("Access-Control-Allow-Origin", "*");
+    //    res.addHeader("Access-Control-Allow-Headers", "Content-Type");
+    //    check caller->respond(res);
+    //}
 
-    
+    resource function options scheduleAppointment() returns http:Response {
+        http:Response res = new;
+        http:Response cORSHeaders = setCORSHeaders(res);
+        res.addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+        return res;
+    }
+
 }
 
 type PatientProfileInput record {
@@ -306,13 +301,12 @@ type PatientProfileInput record {
     // Add other necessary fields like age, gender, etc.
 };
 
-
 // Input Types
 type UserInput record {
     string username;
     string password; // In production, hash this password
     string role; // "patient" or "doctor"
- string specialization;
+    string specialization;
 };
 
 type LoginInput record {
@@ -333,6 +327,7 @@ type MessageInput record {
     string content;
     string timestamp;
 };
+
 type DoctorProfile record {
     string id;
     string username;
@@ -341,14 +336,13 @@ type DoctorProfile record {
     // Add other necessary fields like qualifications, experience, etc.
 };
 
-
 // Data Types
 type User record {
     string id;
     string username;
     string password; // Store hashed password in production
     string role; // "patient" or "doctor"
-     string specialization;
+    string specialization;
 };
 
 type Appointment record {
@@ -357,13 +351,14 @@ type Appointment record {
     string doctorId;
     string appointmentTime;
     string status;
-    
+
 };
+
 type HealthRecordInput record {
     string recordUrl; // URL to the uploaded health record file
     string timestamp; // The time the record was uploaded
     string id;
-     string patientId;
+    string patientId;
 };
 
 type Message record {

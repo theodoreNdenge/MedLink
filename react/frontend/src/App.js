@@ -1,6 +1,5 @@
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate, Link } from 'react-router-dom';
-import Home from './components/home';
 import Register from './components/register';
 import Login from './components/login';
 import DoctorDashboard from './components/DoctorDashboard'
@@ -17,8 +16,8 @@ const App = () => {
                 <Route path="/register" element={<Register />} />
                 <Route path="/login" element={<Login />} /> {/* Placeholder for login page */}
                 {/* Role-based dashboard routing */}
-                {role === 'patient' && <Route path="/patient-dashboard" element={<PatientDashboard />} />}
-                {role === 'doctor' && <Route path="/doctor-dashboard" element={<DoctorDashboard />} />}
+                {role === 'patient' && <Route path="/PatientDashboard" element={<PatientDashboard />} />}
+                {role === 'doctor' && <Route path="/DoctorDashboard" element={<DoctorDashboard />} />}
                 <Route path="/appointments" element={<Appointments />} />
                 {/* Fallback route for unknown paths */}
                 <Route path="*" element={<Navigate to="/" />} />

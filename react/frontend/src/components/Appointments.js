@@ -76,6 +76,7 @@ const Appointments = () => {
         patientId: userId, // Include the patient ID in the request
         status: 'scheduled',
         appointmentDate: selectedDate.toISOString(), // Use appointmentDate here
+        doctorName: selectedDoctor.username
     };
 
     try {
@@ -93,7 +94,7 @@ const Appointments = () => {
         setAppointmentDate(''); // Reset appointment date
     } catch (error) {
         console.error('Error scheduling appointment:', error);
-        setErrorMessage('Error scheduling appointment. Please try again.'); // Set error message
+        setErrorMessage('Doctor is not available at selected time,  Please try again.'); // Set error message
         setSuccessMessage(''); // Reset success message
     }
 };

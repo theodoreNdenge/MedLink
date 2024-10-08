@@ -2,6 +2,7 @@ import ballerina/http;
 import ballerina/uuid;
 import ballerinax/mongodb;
 
+
 configurable string host = "localhost";
 configurable int port = 27017;
 configurable string username = "username";
@@ -59,6 +60,7 @@ function createSuccessResponse(string message) returns http:Response|error {
 }
 
 service /user on new http:Listener(8080) {
+    
 
     private final mongodb:Database TelemedicineDb;
 
@@ -92,8 +94,9 @@ service /user on new http:Listener(8080) {
         http:Response res = check createSuccessResponse("Registration successful!");
         return setCORSHeaders(res);
     }
-
+    
     // Fetch User Details
+
     resource function get details(string username) returns User|error {
         mongodb:Collection usersCollection = check self.TelemedicineDb->getCollection("users");
         User|mongodb:DatabaseError|mongodb:ApplicationError|error|() user = usersCollection->findOne({
@@ -144,6 +147,8 @@ service /user on new http:Listener(8080) {
         }
     }
 
+    
+
     resource function post scheduleAppointment(AppointmentInput input, string patientId) returns http:Response|error {
         mongodb:Collection appointmentsCollection = check self.TelemedicineDb->getCollection("appointments");
 
@@ -165,7 +170,9 @@ service /user on new http:Listener(8080) {
             patientId: patientId,
             doctorId: input.doctorId,
             status: input.status,
-            appointmentDate: input.appointmentDate
+            appointmentDate: input.appointmentDate,
+            doctorName:input.doctorName
+
         };
 
         // Insert the new appointment into the appointments collection
@@ -194,6 +201,7 @@ service /user on new http:Listener(8080) {
         return setCORSHeaders(res);
 
     }
+    
 
     // Patient Dashboard: View appointments
     resource function get patientDashboard(http:Request req) returns error|http:Response {
@@ -290,7 +298,7 @@ service /user on new http:Listener(8080) {
 
         return createSuccessResponse("Health record uploaded successfully.");
     }
-
+    
     resource function get listDoctors() returns error|http:Response {
         // Get the collection
         mongodb:Collection usersCollection = check self.TelemedicineDb->getCollection("users");
@@ -315,6 +323,9 @@ service /user on new http:Listener(8080) {
         http:Response res = new;
         res.setJsonPayload(doctorList);
         return setCORSHeaders(res);
+    }
+  resource function get appointment/[string userId]() returns error|http:Response|Appointment[] {
+        return getAppointmentsByUserId(self.TelemedicineDb, userId);
     }
 
     resource function options listDoctors() returns http:Response {
@@ -353,13 +364,26 @@ service /user on new http:Listener(8080) {
         res.addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
         return res;
     }
-
+     resource function options appointment() returns http:Response {
+        http:Response res = new;
+        http:Response cORSHeaders = setCORSHeaders(res);
+        res.addHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+        return res;
+    }
     resource function options register() returns http:Response {
         http:Response res = new;
         http:Response cORSHeaders = setCORSHeaders(res);
         res.addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
         return res;
     }
+    
+    resource function options sendMessage() returns http:Response {
+        http:Response res = new;
+        http:Response cORSHeaders = setCORSHeaders(res);
+        res.addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+        return res;
+    }
+
 
     resource function options patientDashboard() returns http:Response {
         http:Response res = new;
@@ -379,12 +403,7 @@ service /user on new http:Listener(8080) {
         return res;
     }
 
-    resource function options sendMessage() returns http:Response {
-        http:Response res = new;
-        http:Response cORSHeaders = setCORSHeaders(res);
-        res.addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-        return res;
-    }
+    
 
     resource function options searchDoctors() returns http:Response {
         http:Response res = new;
@@ -396,6 +415,35 @@ service /user on new http:Listener(8080) {
     }
 
 }
+ function getAppointmentsByUserId(mongodb:Database TelemedicineDb, string userId) returns error|http:Response|Appointment[] {
+    mongodb:Collection appointments = check TelemedicineDb->getCollection("appointments");
+    
+    // Query to find all appointments for the logged-in user
+    stream<Appointment, error?> findResult = check appointments->find({patientId: userId});
+   
+    
+    // Create a list to hold the appointments
+     json[] AppointmentList = [];
+
+        // Iterate over the resultStream and build the JSON array
+        error? e = findResult.forEach(function(Appointment appointment) {
+            json appointmentJson = {
+                 "id":appointment.id,
+                "username": appointment.doctorName,
+                "appointmentTime": appointment.appointmentTime,
+                "appointmentDate": appointment.appointmentDate,
+                "status" : appointment.status
+                
+            };
+            AppointmentList.push(appointmentJson); // Add each doctor to the list
+        });
+
+        // Return the list of doctors as a JSON array directly
+        http:Response res = new;
+        res.setJsonPayload(AppointmentList);
+        return setCORSHeaders(res);
+    }
+
 
 type PatientProfileInput record {
     string id;
@@ -423,6 +471,7 @@ type AppointmentInput record {
     string doctorId;
     string appointmentTime;
     string appointmentDate;
+     string doctorName;
     string status; // e.g., "scheduled", "completed"
 };
 
@@ -457,6 +506,7 @@ type Appointment record {
     string appointmentTime;
     string status;
     string appointmentDate;
+    string doctorName;
 
 };
 

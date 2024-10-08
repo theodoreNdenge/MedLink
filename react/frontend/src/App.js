@@ -7,6 +7,7 @@ import PatientDashboard from './components/PatientDashboard'
 import Appointments from './components/Appointments'
 import DoctorAppointments from './components/DoctorAppointments';
 import WELLnessbot from './components/wellnessBot';
+import Messages from './components/Messages';
 
 const App = () => {
     const role = localStorage.getItem('role'); // Get the role from local storage
@@ -23,6 +24,7 @@ const App = () => {
                 <Route path="/Appointments" element={<Appointments />} />
                 <Route path="/DoctorAppointments" element={<DoctorAppointments />} />
                 <Route path="/wellness-bot" element={<WELLnessbot />} />
+                <Route path="/messages" element={<Messages />} />
                 {/* Fallback route for unknown paths */}
                 <Route path="*" element={<Navigate to="/" />} />
 

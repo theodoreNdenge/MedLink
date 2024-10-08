@@ -49,10 +49,10 @@ const WELLnessbot = () => {
         <h2> WELLNESS BOT</h2>
         <nav>
           <ul>
-            <li onClick={() => navigate('/patient-dashboard')}>Dashboard</li>
+            <li onClick={() => navigate('/PatientDashboard')}>Dashboard</li>
             <li onClick={handleNavigateToAppointments}>Appointments</li>
             <li>Prescription</li>
-            <li>Medical Tests</li>
+            <li onClick={() => navigate('/messages')}>Messages</li>
             <li>Health Records</li>
             <li onClick={() => navigate('/wellness-bot')}>Wellness Chatbot</li>
             <li>Settings</li>

@@ -50,7 +50,7 @@ const DoctorAppointments = () => {
   const handleAppointmentSubmit = async (e) => {
     e.preventDefault(); // Prevent default form submission
     const userId = localStorage.getItem('userId');
-    const url = `http://localhost:8080/user/register?patientId=${userId}`;
+    const url = `http://localhost:8080/user/appointment/${userId}`;
 
     // Combine the appointment date and time into a single Date object
     const selectedDate = new Date(`${appointmentDate}T${appointmentTime}`);

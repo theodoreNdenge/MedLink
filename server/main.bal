@@ -2,7 +2,6 @@ import ballerina/http;
 import ballerina/uuid;
 import ballerinax/mongodb;
 
-
 configurable string host = "localhost";
 configurable int port = 27017;
 configurable string username = "username";
@@ -34,21 +33,38 @@ function createErrorResponse(string message) returns http:Response|error {
     response.statusCode = 500;
     return response;
 }
+
 function getAnswer(string question) returns string {
     // Convert question to lowercase for case-insensitive comparison
     string lowerCaseQuestion = question.toLowerAscii();
-
     // Check if the question contains key phrases
     if (lowerCaseQuestion.includes("improve my sleep")) {
         return "Try sticking to a consistent sleep schedule, avoiding screens before bed, and creating a relaxing bedtime routine.";
-    } else if  (lowerCaseQuestion.includes("eat for more energy")) {
-        return  "Incorporate whole grains, lean proteins, and plenty of fruits and vegetables into your diet.";
+    } else if (lowerCaseQuestion.includes("eat for more energy")) {
+        return "Incorporate whole grains, lean proteins, and plenty of fruits and vegetables into your diet.";
     } else if (lowerCaseQuestion.includes("reduce stress")) {
         return "Consider practicing mindfulness, doing regular physical activity, and ensuring you take breaks throughout the day.";
+    } else if (lowerCaseQuestion.includes("boost my immunity")) {
+        return "Eat a balanced diet rich in fruits and vegetables, get regular exercise, and ensure adequate sleep.";
+    } else if (lowerCaseQuestion.includes("stay hydrated")) {
+        return "Aim to drink at least 8 glasses of water a day and include water-rich foods in your diet, such as fruits and vegetables.";
+    } else if (lowerCaseQuestion.includes("manage anxiety")) {
+        return "Practice deep breathing exercises, consider talking to a therapist, and engage in physical activities you enjoy.";
+    } else if (lowerCaseQuestion.includes("healthy snacks")) {
+        return "Opt for nuts, yogurt, fruits, or vegetable sticks with hummus for a nutritious snack.";
+    } else if (lowerCaseQuestion.includes("exercise for weight loss")) {
+        return "Incorporate a mix of cardio, strength training, and flexibility exercises into your routine.";
+    } else if (lowerCaseQuestion.includes("what to eat for a healthy heart")) {
+        return "Focus on foods rich in omega-3 fatty acids, fiber, and antioxidants, such as fish, nuts, whole grains, and leafy greens.";
+    } else if (lowerCaseQuestion.includes("improve mental health")) {
+        return "Engage in social activities, practice gratitude, and maintain a healthy lifestyle.";
     } else {
         return "I'm sorry, I don't have information on that topic. Can I help with something else?";
     }
 }
+
+
+
 
 function createSuccessResponse(string message) returns http:Response|error {
     json successResponse = {"status": "success", "message": message};
@@ -60,7 +76,6 @@ function createSuccessResponse(string message) returns http:Response|error {
 }
 
 service /user on new http:Listener(8080) {
-    
 
     private final mongodb:Database TelemedicineDb;
 
@@ -94,7 +109,7 @@ service /user on new http:Listener(8080) {
         http:Response res = check createSuccessResponse("Registration successful!");
         return setCORSHeaders(res);
     }
-    
+
     // Fetch User Details
 
     resource function get details(string username) returns User|error {
@@ -147,8 +162,6 @@ service /user on new http:Listener(8080) {
         }
     }
 
-    
-
     resource function post scheduleAppointment(AppointmentInput input, string patientId) returns http:Response|error {
         mongodb:Collection appointmentsCollection = check self.TelemedicineDb->getCollection("appointments");
 
@@ -171,8 +184,8 @@ service /user on new http:Listener(8080) {
             doctorId: input.doctorId,
             status: input.status,
             appointmentDate: input.appointmentDate,
-            doctorName:input.doctorName
-
+            doctorName: input.doctorName,
+            patientName: input.patientName
         };
 
         // Insert the new appointment into the appointments collection
@@ -201,7 +214,6 @@ service /user on new http:Listener(8080) {
         return setCORSHeaders(res);
 
     }
-    
 
     // Patient Dashboard: View appointments
     resource function get patientDashboard(http:Request req) returns error|http:Response {
@@ -217,39 +229,8 @@ service /user on new http:Listener(8080) {
         return setCORSHeaders(res);
     }
 
-    // Doctor Dashboard: View appointments
-    resource function get doctorAppointments(http:Request req) returns error|http:Response {
-        mongodb:Collection appointmentsCollection = check self.TelemedicineDb->getCollection("appointments");
-
-        // Extract userId from the request headers
-        string? doctorId = check req.getHeader("userId");
-        if doctorId is () {
-            // Return an error response if doctorId is not found
-            return createErrorResponse("Doctor ID is required in headers");
-        }
-
-        // Find all appointments for this doctor
-        stream<AppointmentInput, error?> resultStream = check appointmentsCollection->find({doctorId: doctorId});
-
-        json[] appointmentsList = [];
-        error? e = resultStream.forEach(function(AppointmentInput appointments) {
-            json appointmentJson = {
-                "patientId": appointments.patientId,
-                "status": appointments.status,
-                "appointmentTime": appointments.appointmentTime,
-                "appointmentDate": appointments.appointmentDate
-            };
-            appointmentsList.push(appointments.toJson());
-        });
-
-        if e is error {
-            return createErrorResponse("Error retrieving appointments");
-        }
-
-        // Return the list of appointments as JSON
-        json response = {appointments: appointmentsList};
-        http:Response res = check createSuccessResponse(response.toString());
-        return setCORSHeaders(res);
+    resource function get doctorAppointment/[string userId]() returns error|http:Response|Appointment[] {
+        return getDoctorAppointments(self.TelemedicineDb, userId);
     }
 
     //Patient Profile Implementation
@@ -298,7 +279,7 @@ service /user on new http:Listener(8080) {
 
         return createSuccessResponse("Health record uploaded successfully.");
     }
-    
+
     resource function get listDoctors() returns error|http:Response {
         // Get the collection
         mongodb:Collection usersCollection = check self.TelemedicineDb->getCollection("users");
@@ -324,8 +305,42 @@ service /user on new http:Listener(8080) {
         res.setJsonPayload(doctorList);
         return setCORSHeaders(res);
     }
-  resource function get appointment/[string userId]() returns error|http:Response|Appointment[] {
+
+    resource function get listPatients() returns error|http:Response {
+        // Get the collection
+        mongodb:Collection usersCollection = check self.TelemedicineDb->getCollection("users");
+
+        // Find all doctors without filtering by specialization
+        stream<User, error?> resultStream = check usersCollection->find({role: "patient"});
+
+        // Initialize an empty array to collect doctor details
+        json[] patientList = [];
+
+        // Iterate over the resultStream and build the JSON array
+        error? e = resultStream.forEach(function(User patient) {
+            json doctorJson = {
+                "id": patient.id,
+                "username": patient.username
+            };
+            patientList.push(doctorJson); // Add each doctor to the list
+        });
+
+        // Return the list of doctors as a JSON array directly
+        http:Response res = new;
+        res.setJsonPayload(patientList);
+        return setCORSHeaders(res);
+    }
+
+    resource function get appointment/[string userId]() returns error|http:Response|Appointment[] {
         return getAppointmentsByUserId(self.TelemedicineDb, userId);
+    }
+
+    resource function get messages/[string userId]() returns error|http:Response|Message[] {
+        return getMessages(self.TelemedicineDb, userId);
+    }
+
+    resource function get recievemessages/[string userId]() returns error|http:Response|Message[] {
+        return recieveMessages(self.TelemedicineDb, userId);
     }
 
     resource function options listDoctors() returns http:Response {
@@ -335,7 +350,16 @@ service /user on new http:Listener(8080) {
         res.addHeader("Access-Control-Allow-Origin", "*");
         return res;
     }
-     resource function get answer(http:Caller caller, http:Request req, string question) returns error? {
+
+    resource function options listPatients() returns http:Response {
+        http:Response res = new;
+        http:Response cORSHeaders = setCORSHeaders(res);
+        res.addHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+        res.addHeader("Access-Control-Allow-Origin", "*");
+        return res;
+    }
+
+    resource function get answer(http:Caller caller, http:Request req, string question) returns error? {
         http:Response res = new;
         // Set CORS headers to allow requests from localhost:3000
         res.setHeader("Access-Control-Allow-Origin", "http://localhost:3000");
@@ -357,33 +381,54 @@ service /user on new http:Listener(8080) {
         check caller->respond(res);
     }
 
-
     resource function options login() returns http:Response {
         http:Response res = new;
         http:Response cORSHeaders = setCORSHeaders(res);
         res.addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
         return res;
     }
-     resource function options appointment() returns http:Response {
+
+    resource function options appointment() returns http:Response {
         http:Response res = new;
         http:Response cORSHeaders = setCORSHeaders(res);
         res.addHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
         return res;
     }
+
+    resource function options messages() returns http:Response {
+        http:Response res = new;
+        http:Response cORSHeaders = setCORSHeaders(res);
+        res.addHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+        return res;
+    }
+
+    resource function options receivemessages() returns http:Response {
+        http:Response res = new;
+        http:Response cORSHeaders = setCORSHeaders(res);
+        res.addHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+        return res;
+    }
+
+    resource function options doctorAppointment() returns http:Response {
+        http:Response res = new;
+        http:Response cORSHeaders = setCORSHeaders(res);
+        res.addHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+        return res;
+    }
+
     resource function options register() returns http:Response {
         http:Response res = new;
         http:Response cORSHeaders = setCORSHeaders(res);
         res.addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
         return res;
     }
-    
+
     resource function options sendMessage() returns http:Response {
         http:Response res = new;
         http:Response cORSHeaders = setCORSHeaders(res);
         res.addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
         return res;
     }
-
 
     resource function options patientDashboard() returns http:Response {
         http:Response res = new;
@@ -403,8 +448,6 @@ service /user on new http:Listener(8080) {
         return res;
     }
 
-    
-
     resource function options searchDoctors() returns http:Response {
         http:Response res = new;
         http:Response cORSHeaders = setCORSHeaders(res);
@@ -415,35 +458,115 @@ service /user on new http:Listener(8080) {
     }
 
 }
- function getAppointmentsByUserId(mongodb:Database TelemedicineDb, string userId) returns error|http:Response|Appointment[] {
+
+function getAppointmentsByUserId(mongodb:Database TelemedicineDb, string userId) returns error|http:Response|Appointment[] {
     mongodb:Collection appointments = check TelemedicineDb->getCollection("appointments");
-    
+
     // Query to find all appointments for the logged-in user
     stream<Appointment, error?> findResult = check appointments->find({patientId: userId});
-   
-    
+
     // Create a list to hold the appointments
-     json[] AppointmentList = [];
+    json[] AppointmentList = [];
 
-        // Iterate over the resultStream and build the JSON array
-        error? e = findResult.forEach(function(Appointment appointment) {
-            json appointmentJson = {
-                 "id":appointment.id,
-                "username": appointment.doctorName,
-                "appointmentTime": appointment.appointmentTime,
-                "appointmentDate": appointment.appointmentDate,
-                "status" : appointment.status
-                
-            };
-            AppointmentList.push(appointmentJson); // Add each doctor to the list
-        });
+    // Iterate over the resultStream and build the JSON array
+    error? e = findResult.forEach(function(Appointment appointment) {
+        json appointmentJson = {
+            "id": appointment.id,
+            "username": appointment.doctorName,
+            "appointmentTime": appointment.appointmentTime,
+            "appointmentDate": appointment.appointmentDate,
+            "status": appointment.status
 
-        // Return the list of doctors as a JSON array directly
-        http:Response res = new;
-        res.setJsonPayload(AppointmentList);
-        return setCORSHeaders(res);
-    }
+        };
+        AppointmentList.push(appointmentJson); // Add each doctor to the list
+    });
 
+    // Return the list of doctors as a JSON array directly
+    http:Response res = new;
+    res.setJsonPayload(AppointmentList);
+    return setCORSHeaders(res);
+}
+
+// Doctor Dashboard: View appointments
+function getDoctorAppointments(mongodb:Database TelemedicineDb, string userId) returns error|http:Response|Appointment[] {
+    mongodb:Collection appointments = check TelemedicineDb->getCollection("appointments");
+
+    // Query to find all appointments for the logged-in user
+    stream<Appointment, error?> findResult = check appointments->find({doctorId: userId});
+
+    // Create a list to hold the appointments
+    json[] AppointmentList = [];
+
+    // Iterate over the resultStream and build the JSON array
+    error? e = findResult.forEach(function(Appointment appointment) {
+        json appointmentJson = {
+            "id": appointment.id,
+            "patientName": appointment.patientName,
+            "appointmentTime": appointment.appointmentTime,
+            "appointmentDate": appointment.appointmentDate,
+            "status": appointment.status
+
+        };
+        AppointmentList.push(appointmentJson); // Add each doctor to the list
+    });
+
+    // Return the list of doctors as a JSON array directly
+    http:Response res = new;
+    res.setJsonPayload(AppointmentList);
+    return setCORSHeaders(res);
+}
+
+function getMessages(mongodb:Database TelemedicineDb, string recipientId) returns error|http:Response|Message[] {
+    mongodb:Collection messages = check TelemedicineDb->getCollection("messages");
+
+    // Query to find all appointments for the logged-in user
+    stream<Message, error?> findResult = check messages->find({userId: recipientId});
+
+    // Create a list to hold the appointments
+    json[] MessageList = [];
+
+    // Iterate over the resultStream and build the JSON array
+    error? e = findResult.forEach(function(Message message) {
+        json messageJson = {
+            "senderId": message.senderId,
+            "recipientId": message.recipientId,
+            "message": message.content,
+            "Time sent": message.timestamp
+        };
+        MessageList.push(messageJson); // Add each doctor to the list
+    });
+
+    // Return the list of doctors as a JSON array directly
+    http:Response res = new;
+    res.setJsonPayload(MessageList);
+    return setCORSHeaders(res);
+}
+
+function recieveMessages(mongodb:Database TelemedicineDb, string senderId) returns error|http:Response|Message[] {
+    mongodb:Collection messages = check TelemedicineDb->getCollection("messages");
+
+    // Query to find all appointments for the logged-in user
+    stream<Message, error?> findResult = check messages->find({userId: senderId});
+
+    // Create a list to hold the appointments
+    json[] MessageList = [];
+
+    // Iterate over the resultStream and build the JSON array
+    error? e = findResult.forEach(function(Message message) {
+        json messageJson = {
+            "senderId": message.senderId,
+            "recipientId": message.recipientId,
+            "message": message.content,
+            "Time sent": message.timestamp
+        };
+        MessageList.push(messageJson); // Add each doctor to the list
+    });
+
+    // Return the list of doctors as a JSON array directly
+    http:Response res = new;
+    res.setJsonPayload(MessageList);
+    return setCORSHeaders(res);
+}
 
 type PatientProfileInput record {
     string id;
@@ -471,8 +594,9 @@ type AppointmentInput record {
     string doctorId;
     string appointmentTime;
     string appointmentDate;
-     string doctorName;
+    string doctorName;
     string status; // e.g., "scheduled", "completed"
+    string patientName;
 };
 
 type MessageInput record {
@@ -507,7 +631,7 @@ type Appointment record {
     string status;
     string appointmentDate;
     string doctorName;
-
+    string patientName;
 };
 
 type HealthRecordInput record {
@@ -524,4 +648,5 @@ type Message record {
     string content;
     string timestamp;
 };
+
 

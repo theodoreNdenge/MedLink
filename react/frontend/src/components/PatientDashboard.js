@@ -44,10 +44,10 @@ const PatientDashboard = () => {
           <ul>
             <li onClick={() => navigate('/PatientDashboard')}>Dashboard</li>
             <li onClick={handleNavigateToAppointments}>Appointments</li>
-            <li>Prescription</li>
+            <li  onClick={() => navigate('/health-records')} >Health Records</li>
             <li onClick={() => navigate('/messages')}>Messages</li>
             <li onClick={() => navigate('/wellness-bot')}>Wellness Chatbot</li>
-            <li>Settings</li>
+            <li onClick={() => navigate('/userProfile')}>Settings</li>
           </ul>
         </nav>
       </aside>

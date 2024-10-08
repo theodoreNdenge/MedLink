@@ -58,6 +58,7 @@ const Appointments = () => {
   const handleAppointmentSubmit = async (e) => {
     e.preventDefault(); // Prevent default form submission
     const userId = localStorage.getItem('userId');
+    const storedUsername = localStorage.getItem('username');
     const url = `http://localhost:8080/user/scheduleAppointment?patientId=${userId}`;
 
     // Combine the appointment date and time into a single Date object
@@ -76,7 +77,8 @@ const Appointments = () => {
         patientId: userId, // Include the patient ID in the request
         status: 'scheduled',
         appointmentDate: selectedDate.toISOString(), // Use appointmentDate here
-        doctorName: selectedDoctor.username
+        doctorName: selectedDoctor.username,
+        patientName: storedUsername
     };
 
     try {
@@ -111,11 +113,10 @@ const Appointments = () => {
           <ul>
             <li onClick={() => navigate('/PatientDashboard')}>Dashboard</li>
             <li onClick={handleNavigateToAppointments}>Appointments</li>
-            <li>Prescription</li>
-            <li>Medical Tests</li>
-            <li>Health Records</li>
+            <li  onClick={() => navigate('/health-records')}>Health Records</li>
+            <li onClick={() => navigate('/messages')} >Messages</li>
             <li onClick={() => navigate('/wellness-bot')}>Wellness Chatbot</li>
-            <li>Settings</li>
+            <li onClick={() => navigate('/userProfile')}>Settings</li>
           </ul>
         </nav>
       </aside>

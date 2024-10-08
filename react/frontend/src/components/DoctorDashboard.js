@@ -4,41 +4,37 @@ import axios from 'axios';
 import './doctorDashboard.css'; // Create this file for custom styles
 
 const DoctorDashboard = () => {
-  const navigate = useNavigate();
-  const [appointments, setAppointments] = useState([]);
-  const [messages, setMessages] = useState([]);
-  const [patients, setPatients] = useState([]);
-
-  // Fetch appointments, messages, and patients on component mount
-  useEffect(() => {
-    const fetchData = async () => {
+    const navigate = useNavigate();
+    const [appointments, setAppointments] = useState([]);
+    const [userId, setUserId] = useState('');
+    const [username, setUsername] = useState('');
+  
+    // Retrieve the userId and username from local storage
+    useEffect(() => {
+      const storedUserId = localStorage.getItem('userId');
+      const storedUsername = localStorage.getItem('username');
+      if (storedUserId) {
+        setUserId(storedUserId);
+        fetchAppointments(storedUserId);
+      }
+    
+      if (storedUsername) {
+        setUsername(storedUsername);
+      }
+    }, []);
+  
+    const fetchAppointments = async (id) => {
       try {
-        const userId = localStorage.getItem('userId'); // Get user ID from local storage
-        
-        // Fetch appointments for the doctor
-        const appointmentsResponse = await axios.get('http://localhost:8080/user/doctorAppointments', {
-          headers: { 'userId': userId }
-        });
-        setAppointments(appointmentsResponse.data);
-
-        // Fetch messages (assuming an endpoint exists for this)
-        const messagesResponse = await axios.get('http://localhost:8080/user/messages', {
-          headers: { 'userId': userId }
-        });
-        setMessages(messagesResponse.data);
-
-        // Fetch patients (assuming an endpoint exists for this)
-        const patientsResponse = await axios.get(`http://localhost:8080/user/patients`, {
-          headers: { 'userId': userId }
-        });
-        setPatients(patientsResponse.data);
+        const response = await axios.get(`http://localhost:8080/user/doctorAppointment/${id}`); // Use the correct endpoint
+        setAppointments(response.data); // Assuming the API returns a list of appointments
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error fetching appointments:', error);
       }
     };
-
-    fetchData();
-  }, []);
+  
+    const handleNavigateToAppointments = () => {
+      navigate('/DoctorDashboard'); // Use navigate to go to the Appointments page
+    };
 
   return (
     <div className="dashboard-container">
@@ -47,26 +43,28 @@ const DoctorDashboard = () => {
         <nav>
           <ul>
             <li onClick={() => navigate('/DoctorAppointments')}>Appointments</li>
-            <li onClick={() => navigate('/Messages')}>Messages</li>
-            <li onClick={() => navigate('/Patients')}>Patients</li>
-            <li onClick={() => navigate('/Settings')}>Settings</li>
+            <li onClick={() => navigate('/DoctorMessages')}>Messages</li>
+            <li onClick={() => navigate('/')}>Patients</li>
+            <li onClick={() => navigate('/')}>Settings</li>
           </ul>
         </nav>
       </aside>
 
       <main className="main-content">
         <header className="dashboard-header">
-          <h2>Welcome, Doctor!</h2>
+          <h2>Welcome, Dr {username}!</h2>
         </header>
 
         <section className="appointments-section">
           <h3>Your Appointments</h3>
           <div className="appointments">
             {appointments.length > 0 ? (
-              appointments.map((appointments) => (
-                <div className="appointment" key={appointments.id}>
-                  <p>{appointments.patientId}</p> {/* Assuming patientId is being used */}
-                  <span>{appointments.appointmentTime}</span>
+              appointments.map((appointment) => (
+                <div className="appointment" key={appointment.id}>
+                  <p><strong>Patient Name:</strong> {appointment.patientName}</p>
+                  <p><strong>Date:</strong> {new Date(appointment.appointmentDate).toLocaleDateString()}</p>
+                  <p><strong>Time:</strong> {appointment.appointmentTime}</p>
+                  <p><strong>Status:</strong> {appointment.status}</p>
                 </div>
               ))
             ) : (
@@ -75,40 +73,11 @@ const DoctorDashboard = () => {
           </div>
         </section>
 
-        <section className="messages-section">
-          <h3>Your Messages</h3>
-          <div className="messages">
-            {messages.length > 0 ? (
-              messages.map((message) => (
-                <div className="message" key={message.id}>
-                  <p>{message.content}</p>
-                  <span>{message.timestamp}</span>
-                </div>
-              ))
-            ) : (
-              <p>No messages available.</p>
-            )}
-          </div>
-        </section>
-
-        <section className="patients-section">
-          <h3>Your Patients</h3>
-          <div className="patients">
-            {patients.length > 0 ? (
-              patients.map((patient) => (
-                <div className="patient" key={patient.id}>
-                  <p>{patient.username}</p> {/* Assuming patient username is available */}
-                </div>
-              ))
-            ) : (
-              <p>No patients assigned.</p>
-            )}
-          </div>
-        </section>
       </main>
     </div>
   );
 };
 
 export default DoctorDashboard;
+
 

@@ -3,12 +3,12 @@ import axios from 'axios';
 import './Messages.css'; // Import the CSS file
 import { useNavigate } from 'react-router-dom';
 
-const Messages = () => {
-  const [doctors, setDoctors] = useState([]);
+const DoctorMessages = () => {
+  const [patients, setPatients] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filteredDoctors, setFilteredDoctors] = useState([]);
+  const [filteredPatients, setFilteredPatients] = useState([]);
   const [isChatModalOpen, setIsChatModalOpen] = useState(false); // State for chat modal
-  const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [selectedPatient, setSelectedPatient] = useState(null);
   const [chatMessages, setChatMessages] = useState([]); // State for chat messages
   const [newMessage, setNewMessage] = useState(''); // State for new message input
   const navigate = useNavigate();
@@ -20,16 +20,16 @@ const Messages = () => {
 
   useEffect(() => {
     handleSearch();
-  }, [searchTerm, doctors]);
+  }, [searchTerm, patients]);
 
   const fetchDoctors = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/user/listDoctors');
-      console.log('Doctors fetched:', response.data);
+      const response = await axios.get('http://localhost:8080/user/listPatients');
+      console.log('Patients fetched:', response.data);
 
       if (Array.isArray(response.data)) {
-        setDoctors(response.data);
-        setFilteredDoctors(response.data);
+        setPatients(response.data);
+        setFilteredPatients(response.data);
       } else {
         console.error('Unexpected response format:', response.data);
       }
@@ -39,28 +39,22 @@ const Messages = () => {
   };
 
   const handleSearch = () => {
-    const filtered = doctors.filter(doctor => {
-      const name = doctor.username ? doctor.username.toLowerCase() : '';
-      const specialization = doctor.specialization ? doctor.specialization.toLowerCase() : '';
-      return name.includes(searchTerm.toLowerCase()) || specialization.includes(searchTerm.toLowerCase());
+    const filtered = patients.filter(patient => {
+      const name = patient.username ? patient.username.toLowerCase() : '';
+      return name.includes(searchTerm.toLowerCase());
     });
-    setFilteredDoctors(filtered);
+    setFilteredPatients(filtered);
   };
 
-  const openChat = (doctor) => {
-    setSelectedDoctor(doctor);
-    fetchChatMessages(doctor.doctorId); // Fetch previous messages for the selected doctor
+  const openChat = (patient) => {
+    setSelectedPatient(patient);
+    fetchChatMessages(patient.patientId); // Fetch previous messages for the selected doctor
     setIsChatModalOpen(true);
-    const initialMessages = [
-      { senderId: userId, content: "Hey Doctor can we book an appointment for tomorrow at 3pm",  timestamp: new Date().toISOString() },
-      { senderId: doctors.id, content: "ok",  timestamp: new Date().toISOString() }
-    ];
-    setChatMessages(initialMessages);
   };
 
-  const fetchChatMessages = async (recipientId) => {
+  const fetchChatMessages = async (userId) => {
     try {
-      const response = await axios.get(`http://localhost:8080/user/getMessages?recipientId=${recipientId}`);
+      const response = await axios.get(`http://localhost:8080/user/messages?recipientId=${userId}`);
       if (Array.isArray(response.data)) {
         setChatMessages(response.data); // Set fetched messages
       }
@@ -68,15 +62,13 @@ const Messages = () => {
       console.error('Error fetching chat messages:', error);
     }
   };
-  
-  
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
 
     const messageData = {
       senderId: userId,
-      recipientId: selectedDoctor.id,
+      recipientId: selectedPatient.id,
       content: newMessage,
       timestamp: new Date().toISOString(),
     };
@@ -96,43 +88,41 @@ const Messages = () => {
         <h2>Appointments</h2>
         <nav>
           <ul>
-            <li onClick={() => navigate('/PatientDashboard')}>Dashboard</li>
-            <li onClick={() => navigate('/Appointments')}>Appointments</li>
+            <li onClick={() => navigate('/DoctorDashboard')}>Dashboard</li>
+            <li onClick={() => navigate('/DoctorDashboard')}>Appointments</li>
             <li>Prescription</li>
-            <li onClick={() => navigate('/messages')}>Messages</li>
-            <li>Health Records</li>
-            <li onClick={() => navigate('/wellness-bot')}>Wellness Chatbot</li>
+            <li onClick={() => navigate('/DoctorMessages')}>Messages</li>
             <li>Settings</li>
           </ul>
         </nav>
       </aside>
 
       <div className="appointments-container">
-        <h2>Search for Doctors</h2>
+        <h2>Search for Patients</h2>
         <div>
           <input
             type="text"
-            placeholder="Enter specialization or name"
+            placeholder="Enter Name"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         <main className="main-content">
-          <h3>Available Doctors:</h3>
+          <h3>List of Patients</h3>
           <div className="doctors-list">
-            {filteredDoctors.length > 0 ? (
+            {filteredPatients.length > 0 ? (
               <div>
-                {filteredDoctors.map(doctor => (
-                  <div className="doctor-card" key={doctor.id}>
+                {filteredPatients.map(patient => (
+                  <div className="doctor-card" key={patient.id}>
                     <div className="doctor-info">
-                      <strong>Doctor Name:</strong> {doctor.username}
+                      <strong>Patient Name:</strong> {patient.username}
                     </div>
                     <div className="doctor-info">
-                      <strong>Specialization:</strong> {doctor.specialization}
+
                     </div>
                     <button 
                       className="schedule-btn" 
-                      onClick={() => openChat(doctor)} // Open chat modal
+                      onClick={() => openChat(patient)} // Open chat modal
                     >
                       Send Message
                     </button>
@@ -140,7 +130,7 @@ const Messages = () => {
                 ))}
               </div>
             ) : (
-              <p>No doctors available</p>
+              <p>No patients available</p>
             )}
           </div>
         </main>
@@ -149,7 +139,7 @@ const Messages = () => {
         {isChatModalOpen && (
           <div className="modal">
             <div className="modal-content">
-              <h3>Chat with Dr. {selectedDoctor?.username}</h3>
+              <h3>Chat with Patient, {selectedPatient?.username}</h3>
               <div className="chat-container">
                 <div className="messages">
                   {chatMessages.map((msg, index) => (
@@ -178,6 +168,6 @@ const Messages = () => {
   );
 };
 
-export default Messages;
+export default DoctorMessages;
 
 
